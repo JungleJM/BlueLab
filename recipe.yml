@@ -1,0 +1,37 @@
+name: bluelab
+description: BlueLab - Automated homelab system based on Bluefin-DX
+base-image: ghcr.io/ublue-os/bluefin-dx
+image-version: latest
+
+modules:
+  # Only install packages not available in Bluefin-DX
+  # Bluefin-DX already includes: Docker, Tailscale, ZFS, Samba via ujust commands
+  - type: rpm-ostree
+    install:
+      # Additional utilities for homelab management
+      - jq
+      - yq
+      - tree
+      - envsubst
+      # Monitoring tools
+      - htop
+      - iotop
+      - nethogs
+
+  # Copy our custom files into the image
+  - type: files
+    files:
+      - usr: /usr
+
+  # Enable our custom systemd services
+  - type: systemd
+    system:
+      # First boot configuration service
+      bluelab-first-boot.service: enabled
+      # Update management timer
+      bluelab-updater.timer: enabled
+
+  # Run setup scripts during image build to prepare environment
+  - type: script
+    scripts:
+      - setup-bluelab-environment.sh
