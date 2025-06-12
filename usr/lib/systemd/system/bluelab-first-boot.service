@@ -1,0 +1,31 @@
+[Unit]
+Description=BlueLab First Boot Configuration
+Documentation=https://github.com/your-username/bluelab
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+# Only run if first boot hasn't completed
+ConditionPathExists=!/var/lib/bluelab/.first-boot-complete
+# Don't run in rescue mode
+ConditionKernelCommandLine=!rescue
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bluelab-first-boot
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+# Give it time to complete
+TimeoutStartSec=1800
+# Run as root (needed for system configuration)
+User=root
+Group=root
+# Set up environment
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Restart on failure
+Restart=on-failure
+RestartSec=30
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target
