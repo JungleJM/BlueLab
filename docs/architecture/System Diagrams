@@ -170,22 +170,22 @@ flowchart TD
 ```mermaid
 graph LR
     subgraph "Configuration Data"
-        A[/var/lib/bluelab/config.env]
-        B[/var/lib/bluelab/stacks/*/]
-        C[/var/lib/bluelab/templates/]
+        A["/var/lib/bluelab/<br/>config.env"]
+        B["/var/lib/bluelab/<br/>stacks/*/"]
+        C["/var/lib/bluelab/<br/>templates/"]
     end
     
     subgraph "Application Data"
-        D[Media Libraries]
-        E[Photo Collections]
-        F[Configuration Backups]
-        G[Database Files]
+        D["Media Libraries"]
+        E["Photo Collections"]
+        F["Configuration Backups"]
+        G["Database Files"]
     end
     
     subgraph "System Data"
-        H[Container Images]
-        I[Docker Volumes]
-        J[System Logs]
+        H["Container Images"]
+        I["Docker Volumes"]
+        J["System Logs"]
     end
     
     A --> B
@@ -368,28 +368,42 @@ pie title Storage Allocation
 ## Development Workflow
 
 ```mermaid
-gitgraph
-    commit id: "Initial Spec"
-    branch phase1
-    checkout phase1
-    commit id: "BlueBuild Recipe"
-    commit id: "First-Boot Service"
-    commit id: "Basic Stack Deploy"
-    checkout main
-    merge phase1
-    branch phase2
-    checkout phase2
-    commit id: "All Stacks"
-    commit id: "Dockge Integration"
-    commit id: "Homepage Enhancement"
-    checkout main
-    merge phase2
-    branch phase3
-    checkout phase3
-    commit id: "Advanced Features"
-    commit id: "Service Discovery"
-    checkout main
-    merge phase3
+flowchart TD
+    A["Initial Spec"] --> B["BlueBuild Recipe"]
+    B --> C["First-Boot Service"]
+    C --> D["Basic Stack Deploy"]
+    D --> E["Phase 1 Merge"]
+    E --> F["All Stacks"]
+    F --> G["Dockge Integration"]
+    G --> H["Homepage Enhancement"]
+    H --> I["Phase 2 Merge"]
+    I --> J["Advanced Features"]
+    J --> K["Service Discovery"]
+    K --> L["Phase 3 Merge"]
+    
+    subgraph "Main Branch"
+        A
+        E
+        I
+        L
+    end
+    
+    subgraph "Phase 1"
+        B
+        C
+        D
+    end
+    
+    subgraph "Phase 2"
+        F
+        G
+        H
+    end
+    
+    subgraph "Phase 3"
+        J
+        K
+    end
 ```
 
 These diagrams provide visual representations of BlueLab's architecture, helping developers understand the system's complexity and relationships between components. They serve as both design documentation and implementation guidance.
