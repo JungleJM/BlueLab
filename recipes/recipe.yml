@@ -12,7 +12,7 @@ modules:
       - jq
       - yq
       - tree
-      - envsubst
+      - gettext
       # Monitoring tools
       - htop
       - iotop
