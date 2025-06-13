@@ -1,7 +1,7 @@
 name: bluelab
 description: BlueLab - Automated homelab system based on Bluefin-DX
 base-image: ghcr.io/ublue-os/bluefin-dx
-image-version: main
+image-version: 41
 
 modules: []
   # All modules temporarily disabled until BlueBuild bugs are resolved
