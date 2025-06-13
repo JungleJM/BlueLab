@@ -3,36 +3,15 @@ description: BlueLab - Automated homelab system based on Bluefin-DX
 base-image: ghcr.io/ublue-os/bluefin-dx
 image-version: main
 
-modules:
-  # Only install packages not available in Bluefin-DX
-  # Bluefin-DX already includes: Docker, Tailscale, ZFS, Samba via ujust commands
-  # Temporarily disabled due to BlueBuild rpm-ostree module bug (CONFIG_DIRECTORY unbound variable)
-  # - type: rpm-ostree
-  #   install:
-  #     # Additional utilities for homelab management
-  #     - jq
-  #     - yq
-  #     - tree
-  #     - gettext
-  #     # Monitoring tools
-  #     - htop
-  #     - iotop
-  #     - nethogs
-
-  # Copy our custom files into the image (disabled until implementation complete)
-  # - type: files
-  #   files:
-  #     - usr: /usr
-
-  # Enable our custom systemd services (disabled until implementation complete)
-  # - type: systemd
-  #   system:
-  #     # First boot configuration service
-  #     bluelab-first-boot.service: enabled
-  #     # Update management timer
-  #     bluelab-updater.timer: enabled
-
-  # Run setup scripts during image build to prepare environment (disabled until implementation complete)
-  # - type: script
-  #   scripts:
-  #     - setup-bluelab-environment.sh
+modules: []
+  # All modules temporarily disabled until BlueBuild bugs are resolved
+  # 
+  # Originally planned modules:
+  # - rpm-ostree: Install additional utilities (jq, yq, tree, gettext, htop, iotop, nethogs)
+  # - files: Copy custom files from usr/ directory
+  # - systemd: Enable bluelab-first-boot.service and bluelab-updater.timer
+  # - script: Run setup-bluelab-environment.sh during build
+  #
+  # Current blockers:
+  # - BlueBuild rpm-ostree module has CONFIG_DIRECTORY unbound variable bug
+  # - Need to implement actual file contents before enabling files/systemd/script modules
