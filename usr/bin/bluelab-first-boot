@@ -1,4 +1,582 @@
 #!/bin/bash
-# BlueLab First Boot Script - Stub Implementation
-echo "BlueLab first boot not yet implemented"
-exit 0
+set -euo pipefail
+
+# BlueLab First Boot Configuration Script
+# This script runs once on first boot to configure the homelab system
+
+SCRIPT_NAME="bluelab-first-boot"
+LOG_FILE="/var/log/bluelab-first-boot.log"
+CONFIG_DIR="/var/lib/bluelab"
+COMPLETION_MARKER="$CONFIG_DIR/.first-boot-complete"
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $*" | tee -a "$LOG_FILE"
+}
+
+log_info() { log "INFO" "$@"; }
+log_warn() { log "WARN" "$@"; }
+log_error() { log "ERROR" "$@"; }
+
+# Exit handler
+cleanup() {
+    local exit_code=$?
+    if [ $exit_code -eq 0 ]; then
+        log_info "BlueLab first boot completed successfully"
+        touch "$COMPLETION_MARKER"
+    else
+        log_error "BlueLab first boot failed with exit code $exit_code"
+    fi
+    exit $exit_code
+}
+trap cleanup EXIT
+
+log_info "Starting BlueLab first boot configuration"
+
+# Check if already completed
+if [ -f "$COMPLETION_MARKER" ]; then
+    log_info "First boot already completed, exiting"
+    exit 0
+fi
+
+# Parse kernel parameters for iVentoy configuration
+parse_kernel_parameters() {
+    log_info "Parsing kernel parameters for BlueLab configuration"
+    
+    # Read kernel command line
+    local cmdline
+    cmdline=$(cat /proc/cmdline)
+    
+    # Extract BlueLab parameters (bluelab.* format)
+    export BLUELAB_USERNAME=""
+    export BLUELAB_PASSWORD=""
+    export BLUELAB_HOSTNAME=""
+    export BLUELAB_TIMEZONE=""
+    export BLUELAB_STACK_SELECTION=""
+    export BLUELAB_TAILSCALE_KEY=""
+    
+    # Parse each parameter
+    for param in $cmdline; do
+        case "$param" in
+            bluelab.username=*)
+                BLUELAB_USERNAME="${param#*=}"
+                log_info "Found username parameter: $BLUELAB_USERNAME"
+                ;;
+            bluelab.password=*)
+                BLUELAB_PASSWORD="${param#*=}"
+                log_info "Found password parameter (hidden)"
+                ;;
+            bluelab.hostname=*)
+                BLUELAB_HOSTNAME="${param#*=}"
+                log_info "Found hostname parameter: $BLUELAB_HOSTNAME"
+                ;;
+            bluelab.timezone=*)
+                BLUELAB_TIMEZONE="${param#*=}"
+                log_info "Found timezone parameter: $BLUELAB_TIMEZONE"
+                ;;
+            bluelab.stacks=*)
+                BLUELAB_STACK_SELECTION="${param#*=}"
+                log_info "Found stack selection: $BLUELAB_STACK_SELECTION"
+                ;;
+            bluelab.tailscale_key=*)
+                BLUELAB_TAILSCALE_KEY="${param#*=}"
+                log_info "Found Tailscale auth key (hidden)"
+                ;;
+        esac
+    done
+}
+
+
+# Interactive fallback for missing parameters
+interactive_setup() {
+    log_info "Starting interactive setup for missing parameters"
+    
+    # Username
+    if [ -z "$BLUELAB_USERNAME" ]; then
+        while [ -z "$BLUELAB_USERNAME" ]; do
+            read -p "Enter username for BlueLab admin user: " BLUELAB_USERNAME
+            if [ -z "$BLUELAB_USERNAME" ]; then
+                echo "Username cannot be empty. Please try again."
+            fi
+        done
+    fi
+    
+    # Password
+    if [ -z "$BLUELAB_PASSWORD" ]; then
+        while [ -z "$BLUELAB_PASSWORD" ]; do
+            read -s -p "Enter password for $BLUELAB_USERNAME: " BLUELAB_PASSWORD
+            echo
+            if [ -z "$BLUELAB_PASSWORD" ]; then
+                echo "Password cannot be empty. Please try again."
+            fi
+        done
+    fi
+    
+    # Hostname
+    if [ -z "$BLUELAB_HOSTNAME" ]; then
+        read -p "Enter hostname for this system [bluelab]: " BLUELAB_HOSTNAME
+        BLUELAB_HOSTNAME="${BLUELAB_HOSTNAME:-bluelab}"
+    fi
+    
+    # Timezone
+    if [ -z "$BLUELAB_TIMEZONE" ]; then
+        read -p "Enter timezone [America/New_York]: " BLUELAB_TIMEZONE
+        BLUELAB_TIMEZONE="${BLUELAB_TIMEZONE:-America/New_York}"
+    fi
+    
+    # Stack selection
+    if [ -z "$BLUELAB_STACK_SELECTION" ]; then
+        echo "Available stacks: monitoring,media,audio,photos,books,productivity,gaming,smb-share"
+        read -p "Enter comma-separated list of stacks to install [monitoring]: " BLUELAB_STACK_SELECTION
+        BLUELAB_STACK_SELECTION="${BLUELAB_STACK_SELECTION:-monitoring}"
+    fi
+    
+    # Tailscale auth key (optional)
+    if [ -z "$BLUELAB_TAILSCALE_KEY" ]; then
+        read -p "Enter Tailscale auth key (optional, press Enter to skip): " BLUELAB_TAILSCALE_KEY
+    fi
+    
+    # Network configuration
+    setup_network_preference
+}
+
+# Network configuration to prevent IP changes
+setup_network_preference() {
+    local current_ip
+    current_ip=$(hostname -I | awk '{print $1}')
+    
+    echo ""
+    echo "=== Network Configuration ==="
+    echo "Current IP address: $current_ip"
+    echo ""
+    echo "IMPORTANT: Your services will be accessible at this IP address."
+    echo "If your router uses DHCP, this IP might change when you restart."
+    echo ""
+    echo "Options to ensure stable access:"
+    echo "1. Use easy-to-remember names like 'bluelab.local' (RECOMMENDED)"
+    echo "2. Configure static IP on this computer"  
+    echo "3. Set up DHCP reservation in your router"
+    echo "4. Continue with current setup (IP may change)"
+    echo ""
+    echo "We recommend option 1 - it uses names instead of numbers"
+    echo "and works even if your IP address changes!"
+    echo ""
+    
+    read -p "Choose option [1-4, default: 1]: " network_choice
+    network_choice=${network_choice:-1}
+    
+    case "$network_choice" in
+        1)
+            setup_hostname_access
+            ;;
+        2)
+            setup_static_ip
+            ;;
+        3)
+            setup_dhcp_reservation_guide
+            ;;
+        4)
+            log_info "Continuing with current DHCP setup"
+            echo "Note: If IP changes, update bookmarks to new IP address"
+            ;;
+        *)
+            log_info "Invalid choice, using recommended hostname setup"
+            setup_hostname_access
+            ;;
+    esac
+}
+
+# Guide user through DHCP reservation
+setup_dhcp_reservation_guide() {
+    local mac_address
+    local interface
+    interface=$(ip route | grep default | awk '{print $5}' | head -1)
+    mac_address=$(cat "/sys/class/net/$interface/address")
+    
+    echo ""
+    echo "=== DHCP Reservation Setup Guide ==="
+    echo "To set up DHCP reservation in your router:"
+    echo ""
+    echo "1. Open your router's admin interface (usually http://192.168.1.1)"
+    echo "2. Look for 'DHCP Reservations' or 'Static DHCP' settings"
+    echo "3. Add a new reservation with these details:"
+    echo "   - MAC Address: $mac_address"
+    echo "   - IP Address: $(hostname -I | awk '{print $1}')"
+    echo "   - Description: BlueLab Server"
+    echo ""
+    echo "This ensures this computer always gets the same IP address."
+    echo ""
+    read -p "Press Enter when done (or Ctrl+C to skip)..."
+    log_info "DHCP reservation setup completed by user"
+}
+
+# Configure static IP
+setup_static_ip() {
+    local current_ip gateway dns interface
+    current_ip=$(hostname -I | awk '{print $1}')
+    gateway=$(ip route | grep default | awk '{print $3}' | head -1)
+    dns=$(grep -m1 nameserver /etc/resolv.conf | awk '{print $2}')
+    interface=$(ip route | grep default | awk '{print $5}' | head -1)
+    
+    echo ""
+    echo "=== Static IP Configuration ==="
+    echo "Current settings:"
+    echo "  IP: $current_ip"
+    echo "  Gateway: $gateway"
+    echo "  DNS: $dns"
+    echo "  Interface: $interface"
+    echo ""
+    
+    read -p "Configure static IP with these settings? [Y/n]: " confirm
+    if [[ "$confirm" =~ ^[Nn] ]]; then
+        log_info "Static IP configuration skipped"
+        return
+    fi
+    
+    log_info "Configuring static IP address"
+    
+    # Get current connection name
+    local connection_name
+    connection_name=$(nmcli -t -f NAME connection show --active | head -1)
+    
+    if [ -n "$connection_name" ]; then
+        # Configure static IP
+        nmcli connection modify "$connection_name" ipv4.method manual
+        nmcli connection modify "$connection_name" ipv4.addresses "${current_ip}/24"
+        nmcli connection modify "$connection_name" ipv4.gateway "$gateway"
+        nmcli connection modify "$connection_name" ipv4.dns "$dns"
+        
+        # Restart connection
+        nmcli connection down "$connection_name"
+        nmcli connection up "$connection_name"
+        
+        log_info "Static IP configured successfully"
+        echo "Your IP address is now static: $current_ip"
+    else
+        log_error "Could not find active network connection"
+    fi
+}
+
+# Set up hostname-based access using "bluelab"
+setup_hostname_access() {
+    log_info "Setting up BlueLab hostname-based access"
+    
+    # Set system hostname to "bluelab" for consistent branding
+    local current_hostname
+    current_hostname=$(hostname)
+    
+    if [ "$current_hostname" != "bluelab" ]; then
+        log_info "Setting system hostname to 'bluelab'"
+        hostnamectl set-hostname bluelab
+        # Update /etc/hosts for immediate resolution
+        sed -i '/127.0.1.1/d' /etc/hosts
+        echo "127.0.1.1 bluelab bluelab.local" >> /etc/hosts
+    fi
+    
+    # Ensure avahi-daemon is running for .local resolution
+    if systemctl is-active --quiet avahi-daemon; then
+        log_info "Avahi daemon is already running"
+    else
+        log_info "Starting Avahi daemon for .local hostname resolution"
+        systemctl enable --now avahi-daemon
+    fi
+    
+    echo ""
+    echo "=== BlueLab Hostname Access Configured ==="
+    echo "Your services will be accessible at:"
+    echo "  LOCAL NETWORK:"
+    echo "    - http://bluelab.local:3000 (Homepage)"
+    echo "    - http://bluelab.local:5001 (Dockge)"
+    echo ""
+    
+    # If Tailscale will be configured, mention remote access
+    if [ -n "$BLUELAB_TAILSCALE_KEY" ]; then
+        echo "  REMOTE ACCESS (via Tailscale):"
+        echo "    - http://bluelab:3000 (Homepage - from any Tailscale device)"
+        echo "    - http://bluelab:5001 (Dockge - from any Tailscale device)"
+        echo ""
+    fi
+    
+    echo "Benefits:"
+    echo "  ✓ Easy to remember (no IP addresses!)"
+    echo "  ✓ Works even if IP changes"
+    echo "  ✓ Same bookmarks work everywhere"
+    echo "  ✓ BlueLab branding in every URL"
+    echo ""
+    
+    # Store preference for later use
+    export BLUELAB_USE_HOSTNAME="true"
+    export BLUELAB_HOSTNAME_LOCAL="bluelab.local"
+    export BLUELAB_HOSTNAME_REMOTE="bluelab"
+}
+
+# Create directory structure
+setup_directories() {
+    log_info "Setting up BlueLab directory structure"
+    
+    # Create main directories
+    mkdir -p "$CONFIG_DIR"/{config,stacks,data,backups}
+    mkdir -p "$CONFIG_DIR/data"/{monitoring,media,audio,photos,books,productivity,gaming,smb-share}
+    
+    # Set permissions
+    chown -R root:root "$CONFIG_DIR"
+    chmod 755 "$CONFIG_DIR"
+    chmod 700 "$CONFIG_DIR/config"
+    
+    log_info "Directory structure created successfully"
+}
+
+# Configure user account and Docker access
+setup_user() {
+    log_info "Setting up user account: $BLUELAB_USERNAME"
+    
+    # Create user if doesn't exist
+    if ! id "$BLUELAB_USERNAME" &>/dev/null; then
+        useradd -m -s /bin/bash -G wheel "$BLUELAB_USERNAME"
+        log_info "Created user: $BLUELAB_USERNAME"
+    else
+        log_info "User already exists: $BLUELAB_USERNAME"
+    fi
+    
+    # Set password
+    echo "$BLUELAB_USERNAME:$BLUELAB_PASSWORD" | chpasswd
+    log_info "Password set for user: $BLUELAB_USERNAME"
+    
+    # Configure sudo
+    echo "$BLUELAB_USERNAME ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$BLUELAB_USERNAME"
+    chmod 440 "/etc/sudoers.d/$BLUELAB_USERNAME"
+    log_info "Sudo configured for user: $BLUELAB_USERNAME"
+    
+    # Set up Docker groups using ujust dx-group (Bluefin-DX specific)
+    log_info "Setting up Docker and development groups for Bluefin-DX"
+    if command -v ujust &>/dev/null; then
+        # Run as the target user to ensure proper group assignment
+        sudo -u "$BLUELAB_USERNAME" ujust dx-group
+        log_info "Docker groups configured via ujust dx-group"
+        log_warn "User will need to log out and back in for Docker groups to take effect"
+    else
+        log_warn "ujust command not found, manually adding user to docker group"
+        usermod -a -G docker "$BLUELAB_USERNAME"
+    fi
+}
+
+# Configure system hostname and timezone
+setup_system() {
+    log_info "Configuring system settings"
+    
+    # Set hostname (unless hostname-based access already set it to "bluelab")
+    if [ "${BLUELAB_USE_HOSTNAME:-false}" != "true" ]; then
+        hostnamectl set-hostname "$BLUELAB_HOSTNAME"
+        log_info "Hostname set to: $BLUELAB_HOSTNAME"
+    else
+        log_info "Hostname already configured for BlueLab branding (bluelab)"
+    fi
+    
+    # Set timezone
+    timedatectl set-timezone "$BLUELAB_TIMEZONE"
+    log_info "Timezone set to: $BLUELAB_TIMEZONE"
+}
+
+# Configure Tailscale if auth key provided
+setup_tailscale() {
+    if [ -n "$BLUELAB_TAILSCALE_KEY" ]; then
+        log_info "Setting up Tailscale with provided auth key"
+        
+        # Enable Tailscale using ujust (Bluefin way)
+        if command -v ujust &>/dev/null; then
+            log_info "Enabling Tailscale via ujust toggle-tailscale"
+            echo "yes" | ujust toggle-tailscale || {
+                log_warn "ujust toggle-tailscale failed, trying manual setup"
+                systemctl enable --now tailscaled
+            }
+        else
+            log_info "ujust not available, enabling Tailscale manually"
+            systemctl enable --now tailscaled
+        fi
+        
+        # Wait for Tailscale daemon to be ready
+        local retry_count=0
+        while ! tailscale status &>/dev/null && [ $retry_count -lt 15 ]; do
+            log_info "Waiting for Tailscale daemon... (attempt $((retry_count + 1)))"
+            sleep 2
+            retry_count=$((retry_count + 1))
+        done
+        
+        # Authenticate with the provided key using "bluelab" hostname
+        if tailscale status &>/dev/null; then
+            log_info "Authenticating Tailscale with auth key and hostname 'bluelab'"
+            tailscale up --authkey="$BLUELAB_TAILSCALE_KEY" --hostname="bluelab" --accept-routes
+            log_info "Tailscale setup completed - device will appear as 'bluelab' on your network"
+        else
+            log_error "Tailscale daemon failed to start"
+        fi
+    else
+        log_info "No Tailscale auth key provided, skipping Tailscale setup"
+    fi
+}
+
+# Generate configuration files
+generate_configs() {
+    log_info "Generating BlueLab configuration files"
+    
+    # Global configuration
+    cat > "$CONFIG_DIR/config/global.env" << EOF
+# BlueLab Global Configuration
+BLUELAB_USERNAME=$BLUELAB_USERNAME
+BLUELAB_HOSTNAME=$BLUELAB_HOSTNAME
+BLUELAB_TIMEZONE=$BLUELAB_TIMEZONE
+BLUELAB_VERSION=Phase1
+BLUELAB_INSTALL_DATE=$(date -Iseconds)
+
+# Docker configuration
+DOCKER_DATA_ROOT=/var/lib/bluelab/data
+COMPOSE_PROJECT_NAME=bluelab
+
+# Network configuration - Using host networking for simplicity
+BLUELAB_NETWORK_MODE=host
+HOST_IP=$(hostname -I | awk '{print $1}')
+EOF
+
+    log_info "Global configuration generated"
+}
+
+# Deploy monitoring stack (Phase 1 requirement)
+deploy_monitoring_stack() {
+    log_info "Deploying monitoring stack"
+    
+    # Check if monitoring is in selection
+    if [[ "$BLUELAB_STACK_SELECTION" == *"monitoring"* ]]; then
+        
+        # Ensure Docker daemon is running
+        log_info "Ensuring Docker daemon is running"
+        systemctl enable docker
+        systemctl start docker
+        
+        # Wait for Docker to be ready
+        local retry_count=0
+        while ! docker info &>/dev/null && [ $retry_count -lt 30 ]; do
+            log_info "Waiting for Docker daemon to be ready... (attempt $((retry_count + 1)))"
+            sleep 2
+            retry_count=$((retry_count + 1))
+        done
+        
+        if ! docker info &>/dev/null; then
+            log_error "Docker daemon failed to start after 60 seconds"
+            return 1
+        fi
+        
+        log_info "Docker daemon is ready"
+        # Create monitoring stack directory
+        mkdir -p "$CONFIG_DIR/stacks/monitoring"
+        
+        # Generate basic docker-compose for monitoring (using host networking)
+        cat > "$CONFIG_DIR/stacks/monitoring/docker-compose.yml" << EOF
+version: '3.8'
+
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: bluelab-homepage
+    network_mode: host
+    volumes:
+      - /var/lib/bluelab/data/monitoring/homepage:/app/config
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+
+  dockge:
+    image: louislam/dockge:1
+    container_name: bluelab-dockge
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/bluelab/data/monitoring/dockge:/app/data
+      - /var/lib/bluelab/stacks:/opt/stacks
+    restart: unless-stopped
+    environment:
+      - DOCKGE_STACKS_DIR=/opt/stacks
+      - PORT=5001
+EOF
+
+        # No need for custom networks with host networking
+        
+        # Start monitoring stack
+        cd "$CONFIG_DIR/stacks/monitoring"
+        docker-compose up -d
+        
+        log_info "Monitoring stack deployed successfully"
+    else
+        log_info "Monitoring stack not selected, skipping deployment"
+    fi
+}
+
+# Main execution
+main() {
+    log_info "BlueLab First Boot Configuration starting"
+    
+    # Parse parameters
+    parse_kernel_parameters
+    
+    # Interactive setup for missing parameters
+    interactive_setup
+    
+    # Setup system
+    setup_directories
+    setup_user
+    setup_system
+    setup_tailscale
+    generate_configs
+    deploy_monitoring_stack
+    
+    log_info "🎉 BlueLab first boot configuration completed successfully!"
+    
+    log_info "=========================================="
+    log_info "IMPORTANT: Please log out and back in to activate Docker group permissions"
+    log_info ""
+    log_info "🌐 ACCESS YOUR BLUELAB SERVICES:"
+    
+    if [ "${BLUELAB_USE_HOSTNAME:-false}" = "true" ]; then
+        log_info ""
+        log_info "📱 LOCAL NETWORK (same WiFi/ethernet):"
+        log_info "  • Homepage: http://bluelab.local:3000"
+        log_info "  • Dockge:   http://bluelab.local:5001"
+        
+        if [ -n "$BLUELAB_TAILSCALE_KEY" ]; then
+            log_info ""
+            log_info "🌍 REMOTE ACCESS (from anywhere via Tailscale):"
+            log_info "  • Homepage: http://bluelab:3000"
+            log_info "  • Dockge:   http://bluelab:5001"
+            log_info ""
+            log_info "💡 Bookmark these URLs - they work from any device on your Tailscale!"
+        fi
+        
+        log_info ""
+        log_info "✨ Benefits of hostname access:"
+        log_info "  ✓ Easy to remember (no numbers!)"
+        log_info "  ✓ Works even if your IP changes"
+        log_info "  ✓ Professional BlueLab branding"
+    else
+        local host_ip
+        host_ip=$(hostname -I | awk '{print $1}')
+        log_info ""
+        log_info "📱 LOCAL ACCESS:"
+        log_info "  • Homepage: http://${host_ip}:3000"
+        log_info "  • Dockge:   http://${host_ip}:5001"
+        
+        if [ -n "$BLUELAB_TAILSCALE_KEY" ]; then
+            log_info ""
+            log_info "🌍 REMOTE ACCESS (via Tailscale):"
+            log_info "  • Homepage: http://bluelab:3000"
+            log_info "  • Dockge:   http://bluelab:5001"
+        fi
+    fi
+    
+    log_info ""
+    log_info "🚀 Your BlueLab homelab is ready!"
+    log_info "=========================================="
+}
+
+# Execute main function
+main
