@@ -23,15 +23,15 @@ modules:
     files:
       - usr: /usr
 
-  # Enable our custom systemd services
-  - type: systemd
-    system:
-      # First boot configuration service
-      bluelab-first-boot.service: enabled
-      # Update management timer
-      bluelab-updater.timer: enabled
+  # Enable our custom systemd services (disabled until implementation complete)
+  # - type: systemd
+  #   system:
+  #     # First boot configuration service
+  #     bluelab-first-boot.service: enabled
+  #     # Update management timer
+  #     bluelab-updater.timer: enabled
 
-  # Run setup scripts during image build to prepare environment
-  - type: script
-    scripts:
-      - setup-bluelab-environment.sh
+  # Run setup scripts during image build to prepare environment (disabled until implementation complete)
+  # - type: script
+  #   scripts:
+  #     - setup-bluelab-environment.sh
