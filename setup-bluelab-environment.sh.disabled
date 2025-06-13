@@ -9,7 +9,7 @@ echo "Setting up BlueLab environment in image build..."
 
 # Create marker file to indicate this is a BlueLab image with build timestamp
 echo "bluelab-$(date +%Y%m%d-%H%M%S)" > /etc/bluelab-version
-echo "Built from commit: ${GITHUB_SHA:-unknown}" >> /etc/bluelab-version
+echo "Built from commit: $(echo "${GITHUB_SHA:-unknown}")" >> /etc/bluelab-version
 
 # Set up logrotate for BlueLab logs (when they get created at runtime)
 cat > /etc/logrotate.d/bluelab << 'EOF'

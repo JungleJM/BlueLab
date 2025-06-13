@@ -232,19 +232,69 @@ This document tracks architectural decisions, anticipated challenges, and lesson
 
 ### Actual Challenges Encountered (Post-Development)
 
-*This section will be updated as Phase 1 development progresses*
+#### Challenge 1-A: Test-Driven Development Overhead
+**Status**: Resolved  
+**Date**: 2025-06-12  
+**Description**: Initial approach attempted comprehensive TDD with unit tests, integration tests, and complex test infrastructure before implementing core functionality.
 
-#### Challenge 1-A: [Actual Challenge Title]
-**Status**: [Resolved/In Progress/Blocked]  
-**Description**: [What actually happened vs. what was anticipated]
+**Root Cause**: 
+- Infrastructure automation projects differ fundamentally from application development
+- TDD assumptions (rapid feedback loops, isolated units) don't apply to system integration work
+- Testing systemd services, Docker containers, and hardware integration requires real environments, not mocks
+- Early-stage development needs rapid prototyping, not comprehensive test coverage
 
-**Root Cause**: [Technical details of the issue]
+**Problems Encountered**:
+- GitHub Actions failures from empty test files blocking development
+- Significant time spent on test infrastructure instead of core features
+- Unbound variable errors in test scripts causing CI/CD failures
+- Test complexity exceeding implementation complexity
+- Tests providing no real confidence in system functionality
 
-**Solution Implemented**: [How the challenge was resolved]
+**Solution Implemented**:
+- **Pivoted to Implementation-First Approach**: Focus on getting basic functionality working manually
+- **Simplified Test Infrastructure**: Replaced comprehensive test suite with minimal stubs for CI/CD compatibility
+- **Targeted Testing Strategy**: Plan to add tests only for critical parsing logic and frequently-broken components
+- **Manual Integration Testing**: Emphasize testing on real hardware/VMs where it matters
 
-**Lessons Learned**: [What we discovered and how it changes future approach]
+**Key Insight**: **TDD should be applied selectively based on project characteristics**
+- **Good for TDD**: Pure logic, algorithms, data transformation, API interfaces
+- **Poor for TDD**: System integration, hardware interaction, service orchestration, infrastructure automation
+- **Infrastructure projects benefit more from**: Working prototypes → Manual testing → Targeted tests for pain points
 
-**Documentation Impact**: [Any changes needed to architecture or procedures]
+**Future Impact**: 
+- Adopt "Implementation-First, Test-Where-It-Hurts" approach
+- Prioritize manual testing on target environments
+- Add automated tests for:
+  - iVentoy parameter parsing (pure logic)
+  - Template generation (data transformation)  
+  - Critical integration flows (after they work manually)
+- Skip comprehensive testing for:
+  - One-time setup scripts
+  - Simple configuration file generation
+  - Hardware-dependent functionality
+
+**Documentation Impact**: 
+- Updated development methodology in project docs
+- Simplified test requirements for contributors
+- Emphasized manual testing procedures in deployment guides
+
+---
+
+#### Challenge 1-B: Empty File Execution Issues  
+**Status**: Resolved  
+**Date**: 2025-06-12  
+**Description**: BlueBuild attempted to process empty script files and systemd services, causing "unbound variable" errors and build failures.
+
+**Root Cause**: Project structure included placeholder files (empty scripts, services) that build tools attempted to validate or execute
+
+**Solution Implemented**:
+- Added minimal stub content to prevent execution errors
+- Disabled systemd and script modules in recipe until implementation complete
+- Renamed setup script to prevent auto-execution
+
+**Lessons Learned**: Infrastructure build tools are less forgiving of empty/placeholder files than application frameworks
+
+---
 
 ---
 

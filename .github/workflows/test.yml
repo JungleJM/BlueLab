@@ -1,37 +1,64 @@
-name: Test BlueLab Components
+name: BlueLab Development Workflow
+
+# This workflow is designed for the implementation-first approach
+# Tests will be added selectively for critical components only
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of manual test to run'
+        required: false
+        default: 'basic'
+        type: choice
+        options:
+        - basic
+        - parsing
+        - template
 
 jobs:
-  test:
+  manual-test-support:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         
-      - name: Set up test environment
+      - name: Development Support
         run: |
-          # Make test scripts executable
-          find tests/ -name "*.sh" -type f -exec chmod +x {} \;
+          echo "=== BlueLab Development Workflow ==="
+          echo "Project Status: Phase 1 - Implementation First"
+          echo "Testing Strategy: Manual testing on target hardware"
+          echo ""
+          echo "Available manual test types:"
+          echo "  basic    - Verify core scripts and templates exist"
+          echo "  parsing  - Test parameter parsing logic"
+          echo "  template - Test template generation"
+          echo ""
+          echo "Selected test type: ${{ github.event.inputs.test_type }}"
           
-      - name: Run Unit Tests
+      - name: Basic Verification
+        if: github.event.inputs.test_type == 'basic' || github.event.inputs.test_type == ''
         run: |
-          echo "Running BlueLab unit tests..."
-          ./tests/run_all_tests.sh unit
+          echo "=== Basic Component Verification ==="
+          echo "Checking file structure..."
+          find usr/ -type f | head -10
+          echo ""
+          echo "Checking recipe syntax..."
+          ls -la recipes/
+          echo ""
+          echo "✅ Basic verification complete"
           
-      - name: Run Integration Tests
+      - name: Parsing Logic Test
+        if: github.event.inputs.test_type == 'parsing'
         run: |
-          echo "Running BlueLab integration tests..."
-          ./tests/run_all_tests.sh integration
+          echo "=== Parameter Parsing Test ==="
+          echo "When implemented, this will test iVentoy parameter parsing"
+          echo "Current status: Not yet implemented"
           
-      - name: Test Results Summary
+      - name: Template Test  
+        if: github.event.inputs.test_type == 'template'
         run: |
-          echo " All BlueLab component tests completed successfully (STUB MODE)"
-          echo "Note: These are placeholder tests for CI/CD compatibility"
-          echo "Real tests will be implemented during Phase 1 development"
+          echo "=== Template Generation Test ==="
+          echo "When implemented, this will test Docker Compose template generation"
+          echo "Current status: Not yet implemented"

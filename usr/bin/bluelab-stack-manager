@@ -1,0 +1,4 @@
+#!/bin/bash
+# BlueLab Stack Manager - Stub Implementation
+echo "BlueLab stack manager not yet implemented"
+exit 0

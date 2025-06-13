@@ -1,0 +1,8 @@
+#!/bin/bash
+# BlueLab Just Commands - Stub Implementation
+echo "BlueLab commands not yet implemented"
+echo "Available commands will include:"
+echo "  bluelab-status    - Show system status"
+echo "  bluelab-add-stack - Install application stack"
+echo "  bluelab-apps      - Manage applications"
+exit 0

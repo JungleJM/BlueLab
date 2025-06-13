@@ -1,0 +1,4 @@
+#!/bin/bash
+# BlueLab First Boot Script - Stub Implementation
+echo "BlueLab first boot not yet implemented"
+exit 0
