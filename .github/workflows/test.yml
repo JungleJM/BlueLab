@@ -1,0 +1,37 @@
+name: Test BlueLab Components
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up test environment
+        run: |
+          # Make test scripts executable
+          find tests/ -name "*.sh" -type f -exec chmod +x {} \;
+          
+      - name: Run Unit Tests
+        run: |
+          echo "Running BlueLab unit tests..."
+          ./tests/run_all_tests.sh unit
+          
+      - name: Run Integration Tests
+        run: |
+          echo "Running BlueLab integration tests..."
+          ./tests/run_all_tests.sh integration
+          
+      - name: Test Results Summary
+        run: |
+          echo " All BlueLab component tests completed successfully (STUB MODE)"
+          echo "Note: These are placeholder tests for CI/CD compatibility"
+          echo "Real tests will be implemented during Phase 1 development"
