@@ -1,0 +1,26 @@
+{
+    "control": [
+        {
+            "VTOY_DEFAULT_SEARCH_ROOT": "/ventoy/iso",
+            "VTOY_FILE_FLT_EFI": 0
+        }
+    ],
+    "injection": [
+        {
+            "image": "/ventoy/iso/bluelab-*.iso",
+            "archive": "/ventoy/injection/bluelab-injection.tar.gz"
+        }
+    ],
+    "auto_install": [
+        {
+            "image": "/ventoy/iso/bluelab-*.iso",
+            "template": "/ventoy/autoinstall/bluelab-full.cfg"
+        }
+    ],
+    "boot_append": [
+        {
+            "image": "/ventoy/iso/bluelab-*.iso",
+            "append": "bluelab.username=admin bluelab.password=secure123 bluelab.hostname=bluelab-test bluelab.timezone=America/New_York bluelab.stacks=monitoring,media"
+        }
+    ]
+}
