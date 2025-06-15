@@ -59,13 +59,12 @@ jobs:
         id: build
         with:
           arch: x86_64
-          image_name: bluelab
+          image_name: BlueLab
           image_repo: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           image_tag: latest
           variant: 'Silverblue'
           version: '41'
           iso_name: bluelab.iso
-          volume_id: BlueLab-41
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
