@@ -17,3 +17,9 @@ modules:
     system:
       enabled:
         - bluelab-first-boot.service
+        
+  - type: rpm-ostree
+    install:
+      - jq
+      - yq
+      - git
