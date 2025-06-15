@@ -59,17 +59,18 @@ jobs:
         id: build
         with:
           arch: x86_64
-          image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          image_name: bluelab
           image_repo: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          image_tag: latest
           variant: 'Silverblue'
           version: '41'
-          image_tag: ${{ github.ref_name }}
-          iso_name: bluelab-${{ github.ref_name }}-${{ github.sha }}.iso
+          iso_name: bluelab.iso
+          volume_id: BlueLab-41
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: bluelab-${{ github.ref_name }}-${{ github.sha }}.iso
+          name: bluelab.iso
           path: ${{ steps.build.outputs.iso_path }}
           retention-days: 7
 
