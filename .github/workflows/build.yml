@@ -63,7 +63,7 @@ jobs:
           image_repo: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           variant: 'Silverblue'
           version: '41'
-          image_tag: ${{ steps.meta.outputs.tags }}
+          image_tag: ${{ github.ref_name }}
           iso_name: bluelab-${{ github.ref_name }}-${{ github.sha }}.iso
 
       - name: Upload ISO
