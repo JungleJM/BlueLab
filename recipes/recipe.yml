@@ -12,3 +12,9 @@ modules:
         destination: /usr/lib  
       - source: share
         destination: /usr/share
+        
+  - type: systemd
+    system:
+      enabled:
+        - bluelab-first-boot.service
+        - bluelab-updater.timer
