@@ -3,6 +3,8 @@ description: BlueLab - Automated homelab system based on Bluefin-DX
 base-image: ghcr.io/ublue-os/bluefin-dx
 image-version: 41
 
-modules: []
-  # All modules temporarily disabled to test basic ISO generation first
-  # Will re-enable with containerfile workaround once ISO build succeeds
+modules:
+  - type: files
+    files:
+      - source: files/
+        destination: /
