@@ -6,5 +6,5 @@ image-version: 41
 modules:
   - type: files
     files:
-      - source: files/
+      - source: files
         destination: /
