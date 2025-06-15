@@ -54,6 +54,47 @@ jobs:
           pr_event_number: ${{ github.event.number }}
           maximize_build_space: true
 
+      - name: Generate ISO
+        uses: jasonn3/build-container-installer@v1.2.2
+        id: build
+        with:
+          arch: x86_64
+          image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          image_repo: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          variant: 'Silverblue'
+          version: '41'
+          image_tag: ${{ steps.meta.outputs.tags }}
+          iso_name: bluelab-${{ github.ref_name }}-${{ github.sha }}.iso
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluelab-${{ github.ref_name }}-${{ github.sha }}.iso
+          path: ${{ steps.build.outputs.iso_path }}
+          retention-days: 7
+
+      - name: Create Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.build.outputs.iso_path }}
+          tag_name: ${{ github.ref_name }}-${{ github.run_number }}
+          name: BlueLab ${{ github.ref_name }} - Build ${{ github.run_number }}
+          body: |
+            Automated release of BlueLab ISO
+            
+            **Build Information:**
+            - Branch: ${{ github.ref_name }}
+            - Commit: ${{ github.sha }}
+            - Build Number: ${{ github.run_number }}
+            
+            **Installation:**
+            Download the ISO and boot from it to install BlueLab on your system.
+          draft: false
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   verify:
     needs: build
     runs-on: ubuntu-latest
