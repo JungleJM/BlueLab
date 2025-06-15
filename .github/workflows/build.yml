@@ -64,7 +64,7 @@ jobs:
           arch: x86_64
           image_name: bluelab
           image_repo: ghcr.io/junglejm
-          image_tag: ${{ steps.meta.outputs.version }}
+          image_tag: br-${{ github.ref_name }}-41
           variant: 'Silverblue'
           version: '41'
           iso_name: bluelab-${{ github.ref_name }}-${{ github.run_number }}.iso
