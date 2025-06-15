@@ -62,7 +62,7 @@ jobs:
         id: build
         with:
           arch: x86_64
-          image_name: BlueLab
+          image_name: bluelab
           image_repo: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           image_tag: ${{ github.ref_name }}
           variant: 'Silverblue'
