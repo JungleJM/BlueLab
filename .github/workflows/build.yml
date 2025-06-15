@@ -13,7 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: junglejm/bluelab
+  IMAGE_NAME: bluelab
 
 jobs:
   build:
@@ -38,7 +38,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/junglejm/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -63,7 +63,7 @@ jobs:
         with:
           arch: x86_64
           image_name: bluelab
-          image_repo: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          image_repo: ghcr.io/junglejm/bluelab
           image_tag: ${{ github.ref_name }}
           variant: 'Silverblue'
           version: '41'
