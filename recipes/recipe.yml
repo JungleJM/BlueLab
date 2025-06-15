@@ -4,14 +4,5 @@ base-image: ghcr.io/ublue-os/bluefin-dx
 image-version: 41
 
 modules: []
-  # All modules temporarily disabled until BlueBuild bugs are resolved
-  # 
-  # Originally planned modules:
-  # - rpm-ostree: Install additional utilities (jq, yq, tree, gettext, htop, iotop, nethogs)
-  # - files: Copy custom files from usr/ directory
-  # - systemd: Enable bluelab-first-boot.service and bluelab-updater.timer
-  # - script: Run setup-bluelab-environment.sh during build
-  #
-  # Current blockers:
-  # - BlueBuild rpm-ostree module has CONFIG_DIRECTORY unbound variable bug
-  # - Need to implement actual file contents before enabling files/systemd/script modules
+  # All modules temporarily disabled to test basic ISO generation first
+  # Will re-enable with containerfile workaround once ISO build succeeds
