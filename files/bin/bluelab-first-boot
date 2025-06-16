@@ -289,9 +289,50 @@ EOF
     log_info "Generated credentials configured and saved securely"
 }
 
+# Display welcome message
+display_welcome_message() {
+    echo ""
+    echo "=============================================================================="
+    
+    # Try to read custom welcome message, fallback to default
+    local welcome_file="/usr/share/bluelab/config/welcome-message.txt"
+    if [ -f "$welcome_file" ]; then
+        cat "$welcome_file"
+    else
+        # Fallback welcome message
+        cat << 'EOF'
+🏠 Welcome to BlueLab - Your Personal Homelab System
+
+BlueLab transforms your computer into a powerful homelab server with professional-grade 
+services that are simple to manage. You're about to configure a system that rivals 
+commercial cloud services, but runs entirely under your control.
+
+What you're getting:
+• Homepage Dashboard - Your mission control center  
+• Dockge Container Manager - Professional Docker management
+• Hostname-based access (bluelab.local) - No more remembering IP addresses
+• Remote access via Tailscale - Secure access from anywhere
+• Professional credential management - Enterprise-grade security options
+
+This setup will take 5-10 minutes and will ask you a few simple questions.
+Everything can be reconfigured later using 'ujust bluelab-setup' commands.
+
+Let's build your personal cloud infrastructure!
+EOF
+    fi
+    
+    echo "=============================================================================="
+    echo ""
+    read -p "Press Enter to continue with BlueLab setup..."
+    echo ""
+}
+
 # Interactive setup for remaining parameters
 interactive_setup() {
     log_info "Starting interactive BlueLab setup"
+    
+    # Display welcome message
+    display_welcome_message
     
     # Set up credential strategy first
     setup_credential_strategy

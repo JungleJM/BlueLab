@@ -12,6 +12,8 @@ modules:
         destination: /usr/lib  
       - source: share
         destination: /usr/share
+      - source: config
+        destination: /usr/share/bluelab
         
   - type: systemd
     system:
