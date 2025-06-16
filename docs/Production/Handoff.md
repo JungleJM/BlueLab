@@ -115,7 +115,13 @@ fi
   - Books Stack (Calibre, Readarr)
   - Productivity Stack (Nextcloud)
   - Gaming Stack (ujust-gaming integration, Steam, Lutris/Heroic removal)
-  - SMB Share Stack (ZFS, Samba configuration)
+  
+- [ ] **Automatic Storage Management** - Not Started
+  - **Auto-Install Target**: Detect and install to smallest drive (prefer NVMe)
+  - **ZFS Media Drive**: Auto-setup largest drive as ZFS pool for media storage
+  - **SMB Integration**: Automatic Samba share with user credentials
+  - **Interactive Setup**: "Create media drive from largest drive?" questionnaire
+  - **Tailscale Integration**: SMB accessible via Tailscale network
   
 - [ ] **Dockge Integration** - Not Started
   - Stack management UI configuration
