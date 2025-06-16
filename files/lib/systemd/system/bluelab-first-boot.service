@@ -6,8 +6,9 @@ Wants=network-online.target
 Requires=docker.service
 # Only run if first boot hasn't completed
 ConditionPathExists=!/var/lib/bluelab/.first-boot-complete
-# Don't run in rescue mode
+# Don't run in rescue mode or during installation
 ConditionKernelCommandLine=!rescue
+ConditionKernelCommandLine=!inst.stage2
 
 [Service]
 Type=oneshot
