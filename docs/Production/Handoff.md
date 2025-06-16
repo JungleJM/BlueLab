@@ -5,7 +5,8 @@
 **Project Name**: BlueLab (Bluefin-Based Homelab)  
 **Current Phase**: Phase 1 - Core Foundation  
 **Overall Progress**: 95% (ISO Generated - Pending VM Testing)  
-**Last Updated**: June 15, 2025  
+**Development Period**: June 12-16, 2025 (4 days)  
+**Last Updated**: June 16, 2025  
 **Next Milestone**: VM validation of generated ISO functionality
 
 ## Project Context
@@ -19,6 +20,23 @@ This project creates a custom BlueBuild-based Linux image that provides a fully 
 - [Technical Architecture](technical-architecture.md) - Complete technical specification
 - [System Diagrams](system-diagrams.md) - Visual architecture representations
 - [Technical Decisions](decisions.md) - ADRs, challenges, and lessons learned
+
+## Development Timeline & Duration Tracking
+
+### Phase 1: Core Foundation
+- **Start Date**: June 12, 2025
+- **End Date**: June 16, 2025  
+- **Duration**: 4 days
+- **Status**: 95% Complete (ISO Generated, VM Testing Pending)
+- **Key Milestones**:
+  - Day 1-2: Initial setup, CI/CD configuration, BlueBuild template debugging
+  - Day 3: First-boot system implementation, network architecture design
+  - Day 4: Final integration, documentation updates, ISO generation success
+
+### Future Phases (Planned):
+- **Phase 2**: Stack System Implementation (TBD)
+- **Phase 3**: Advanced Features (TBD)  
+- **Phase 4**: Polish & Production Ready (TBD)
 
 ## Phase Breakdown and Current Status
 
@@ -206,6 +224,98 @@ Detailed in [Technical Decisions - Phase 1 Challenges](decisions.md#phase-1-chal
 - **Runtime Validation**: All functionality is theoretical until VM tested
 - **Performance**: Resource usage and timing unknown on real hardware
 - **Edge Cases**: Error handling and failure scenarios untested
+
+## 🧪 VM Testing Instructions - IMMEDIATE NEXT STEP
+
+### **Step 1: Download the ISO**
+1. Go to GitHub Actions: https://github.com/JungleJM/BlueLab/actions
+2. Click on the latest successful "Build" workflow run (should show green checkmark)
+3. Scroll down to "Artifacts" section
+4. Download `bluelab-51.iso` (will download as a zip file)
+5. Extract the ISO file from the zip
+
+### **Step 2: VM Setup Requirements**
+**Recommended VM Configuration:**
+- **RAM**: 8GB minimum (16GB recommended)
+- **Storage**: 500GB+ virtual disk
+- **Network**: Bridged adapter (so VM gets its own IP on your local network)
+- **Boot**: UEFI mode enabled
+- **Platform**: VMware Workstation, VirtualBox, or Proxmox
+
+### **Step 3: iVentoy VM Testing Process**
+
+**Option A: Test with iVentoy Parameters (Recommended)**
+1. Set up iVentoy with web form template (if available)
+2. Use these test parameters in the web form:
+   ```
+   bluelab.username=testuser
+   bluelab.password=testpass123
+   bluelab.hostname=bluelab-test
+   bluelab.timezone=America/New_York
+   bluelab.stacks=monitoring
+   bluelab.tailscale_key=[OPTIONAL - leave blank for local testing]
+   ```
+
+**Option B: Test with Manual ISO Boot (Fallback)**
+1. Boot directly from ISO in VM
+2. System should detect missing parameters and prompt interactively
+3. Use same values as above when prompted
+
+### **Step 4: What to Monitor During Testing**
+1. **Boot Process**: Does the ISO boot without errors?
+2. **First-Boot Service**: Check if `bluelab-first-boot.service` runs automatically
+3. **Parameter Parsing**: Are the provided parameters correctly processed?
+4. **Network Setup**: Does hostname resolution work? (`ping bluelab-test.local`)
+5. **Service Deployment**: Are Homepage (port 3000) and Dockge (port 5001) accessible?
+6. **Completion**: Does the system show final completion message with service URLs?
+
+### **Step 5: Bug Reporting Strategy for VM Testing**
+
+**For Boot/System Issues:**
+- **Screenshots**: Take pictures of VM screen showing any error messages
+- **Serial Console**: If VM supports it, enable serial console logging
+- **VM Logs**: Check VM software logs (VMware.log, VirtualBox logs)
+
+**For Service Issues:**
+- **Network Testing**: Document IP addresses, hostname resolution results
+- **Browser Screenshots**: Show what happens when accessing service URLs
+- **Service Status**: If you can SSH/access terminal, run `systemctl status bluelab-first-boot.service`
+
+**For First-Boot Script Issues:**
+- **Log Location**: `/var/log/bluelab-first-boot.log` contains detailed execution logs
+- **Access Method**: 
+  - Boot to emergency/rescue mode if system fails
+  - Or SSH into system if network works
+  - Copy log contents: `cat /var/log/bluelab-first-boot.log`
+
+**Error Log Collection Commands (if system is accessible):**
+```bash
+# First-boot script log
+cat /var/log/bluelab-first-boot.log
+
+# System service status
+systemctl status bluelab-first-boot.service
+systemctl status docker
+systemctl status tailscaled
+
+# Network configuration
+ip addr show
+systemctl status systemd-resolved
+nslookup bluelab-test.local
+
+# Container status
+docker ps
+docker logs homepage 2>/dev/null || echo "Homepage not running"
+docker logs dockge 2>/dev/null || echo "Dockge not running"
+```
+
+**Bug Report Format:**
+1. **Environment**: VM software, allocated resources, network configuration
+2. **Test Method**: iVentoy parameters vs manual boot
+3. **Failure Point**: Where exactly did things go wrong?
+4. **Screenshots**: Visual evidence of errors
+5. **Logs**: Any accessible log files (paste as text or screenshots)
+6. **Expected vs Actual**: What should have happened vs what did happen
 
 ## Development Environment Setup
 
