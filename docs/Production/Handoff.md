@@ -81,6 +81,12 @@ This project creates a custom BlueBuild-based Linux image that provides a fully 
 ### Phase 2: Stack System (PENDING - NOT STARTED)
 **Goal**: Implement all predefined stacks and core management systems
 
+**📝 IMPORTANT TRANSITION NOTE**: Once Phase 2 begins, consider **disabling automatic ISO compilation** in GitHub Actions. Phase 2+ will focus on runtime-downloaded stacks and configurations rather than ISO-embedded changes. This will:
+- Save CI/CD resources and build time
+- Allow faster iteration on stack templates and configurations  
+- Reduce unnecessary ISO rebuilds when only runtime components change
+- Enable testing via direct script updates rather than full ISO regeneration
+
 #### Components:
 - [ ] **Complete Stack Implementation** - Not Started
   - Media Stack (Jellyfin, Jellyseerr, *arr suite, Deluge, Filebot)
