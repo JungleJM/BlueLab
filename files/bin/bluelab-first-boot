@@ -128,9 +128,21 @@ interactive_setup() {
     
     # Stack selection
     if [ -z "$BLUELAB_STACK_SELECTION" ]; then
-        echo "Available stacks: monitoring,media,audio,photos,books,productivity,gaming,smb-share"
-        read -p "Enter comma-separated list of stacks to install [monitoring]: " BLUELAB_STACK_SELECTION
-        BLUELAB_STACK_SELECTION="${BLUELAB_STACK_SELECTION:-monitoring}"
+        echo ""
+        echo "=== Service Stack Selection ==="
+        echo "📊 Monitoring Stack: MANDATORY (Homepage dashboard + Dockge container manager)"
+        echo ""
+        echo "📦 Additional Stacks (Phase 2+ features):"
+        echo "  • media       - Jellyfin, Sonarr, Radarr, etc."
+        echo "  • audio       - Navidrome, Lidarr, etc."  
+        echo "  • photos      - Immich photo management"
+        echo "  • books       - Calibre, Readarr"
+        echo "  • productivity - Nextcloud"
+        echo "  • gaming      - Steam, Lutris integration"
+        echo "  • smb-share   - File sharing with ZFS"
+        echo ""
+        read -p "Enter additional stacks to install (optional): " BLUELAB_STACK_SELECTION
+        BLUELAB_STACK_SELECTION="${BLUELAB_STACK_SELECTION:-}"
     fi
     
     # Tailscale auth key (optional)
@@ -465,37 +477,37 @@ EOF
     log_info "Global configuration generated"
 }
 
-# Deploy monitoring stack (Phase 1 requirement)
+# Deploy monitoring stack (Phase 1 requirement - ALWAYS deployed)
 deploy_monitoring_stack() {
-    log_info "Deploying monitoring stack"
+    log_info "Deploying monitoring stack (mandatory for all BlueLab installations)"
     
-    # Check if monitoring is in selection
-    if [[ "$BLUELAB_STACK_SELECTION" == *"monitoring"* ]]; then
-        
-        # Ensure Docker daemon is running
-        log_info "Ensuring Docker daemon is running"
-        systemctl enable docker
-        systemctl start docker
-        
-        # Wait for Docker to be ready
-        local retry_count=0
-        while ! docker info &>/dev/null && [ $retry_count -lt 30 ]; do
-            log_info "Waiting for Docker daemon to be ready... (attempt $((retry_count + 1)))"
-            sleep 2
-            retry_count=$((retry_count + 1))
-        done
-        
-        if ! docker info &>/dev/null; then
-            log_error "Docker daemon failed to start after 60 seconds"
-            return 1
-        fi
-        
-        log_info "Docker daemon is ready"
-        # Create monitoring stack directory
-        mkdir -p "$CONFIG_DIR/stacks/monitoring"
-        
-        # Generate basic docker-compose for monitoring (using host networking)
-        cat > "$CONFIG_DIR/stacks/monitoring/docker-compose.yml" << EOF
+    # Monitoring stack is always deployed - no conditional check needed
+    
+    # Ensure Docker daemon is running
+    log_info "Ensuring Docker daemon is running"
+    systemctl enable docker
+    systemctl start docker
+    
+    # Wait for Docker to be ready
+    local retry_count=0
+    while ! docker info &>/dev/null && [ $retry_count -lt 30 ]; do
+        log_info "Waiting for Docker daemon to be ready... (attempt $((retry_count + 1)))"
+        sleep 2
+        retry_count=$((retry_count + 1))
+    done
+    
+    if ! docker info &>/dev/null; then
+        log_error "Docker daemon failed to start after 60 seconds"
+        return 1
+    fi
+    
+    log_info "Docker daemon is ready"
+    
+    # Create monitoring stack directory
+    mkdir -p "$CONFIG_DIR/stacks/monitoring"
+    
+    # Generate basic docker-compose for monitoring (using host networking)
+    cat > "$CONFIG_DIR/stacks/monitoring/docker-compose.yml" << EOF
 version: '3.8'
 
 services:
@@ -545,8 +557,69 @@ EOF
         fi
         
         log_info "Monitoring stack deployment completed"
+}
+
+# Handle additional stack selections (Phase 2+ features)
+deploy_additional_stacks() {
+    if [ -n "$BLUELAB_STACK_SELECTION" ]; then
+        log_info "Processing additional stack selections: $BLUELAB_STACK_SELECTION"
+        
+        # Split stack selection by commas and process each
+        IFS=',' read -ra STACKS <<< "$BLUELAB_STACK_SELECTION"
+        for stack in "${STACKS[@]}"; do
+            # Trim whitespace
+            stack=$(echo "$stack" | xargs)
+            
+            case "$stack" in
+                "media")
+                    log_warn "📺 Media Stack (Jellyfin, Sonarr, Radarr): Coming in Phase 2!"
+                    log_info "   Will include: Jellyfin media server, Sonarr/Radarr for automation"
+                    ;;
+                "audio")
+                    log_warn "🎵 Audio Stack (Navidrome, Lidarr): Coming in Phase 2!"
+                    log_info "   Will include: Navidrome music server, Lidarr for music automation"
+                    ;;
+                "photos")
+                    log_warn "📸 Photos Stack (Immich): Coming in Phase 2!"
+                    log_info "   Will include: Immich photo management and organization"
+                    ;;
+                "books")
+                    log_warn "📚 Books Stack (Calibre, Readarr): Coming in Phase 2!"
+                    log_info "   Will include: Calibre ebook server, Readarr for book automation"
+                    ;;
+                "productivity")
+                    log_warn "💼 Productivity Stack (Nextcloud): Coming in Phase 3!"
+                    log_info "   Will include: Nextcloud file sync and collaboration tools"
+                    ;;
+                "gaming")
+                    log_warn "🎮 Gaming Stack (Steam, Lutris): Coming in Phase 2!"
+                    log_info "   Will include: ujust gaming integration, Steam, Lutris/Heroic"
+                    ;;
+                "smb-share")
+                    log_warn "🗂️ SMB Share Stack (ZFS, Samba): Coming in Phase 3!"
+                    log_info "   Will include: ZFS storage management, Samba file sharing"
+                    ;;
+                "monitoring")
+                    log_info "📊 Monitoring Stack: Already deployed (mandatory)"
+                    ;;
+                "")
+                    # Empty string, skip
+                    ;;
+                *)
+                    log_warn "❓ Unknown stack '$stack' - skipping"
+                    ;;
+            esac
+        done
+        
+        if [ "${#STACKS[@]}" -gt 0 ]; then
+            echo ""
+            log_info "🚀 Additional stacks will be available in future phases"
+            log_info "   For now, use the monitoring stack to manage your system:"
+            log_info "   • Homepage: http://$BLUELAB_HOSTNAME.local:3000"
+            log_info "   • Dockge:   http://$BLUELAB_HOSTNAME.local:5001"
+        fi
     else
-        log_info "Monitoring stack not selected, skipping deployment"
+        log_info "No additional stacks selected - monitoring stack only"
     fi
 }
 
@@ -567,6 +640,7 @@ main() {
     setup_tailscale
     generate_configs
     deploy_monitoring_stack
+    deploy_additional_stacks
     
     log_info "🎉 BlueLab first boot configuration completed successfully!"
     
