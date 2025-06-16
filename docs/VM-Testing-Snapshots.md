@@ -35,14 +35,31 @@ vboxmanage snapshot "BlueLab-VM" restore "fresh-install-ready"
 vboxmanage snapshot "BlueLab-VM" list
 ```
 
-#### Proxmox VE
+#### Proxmox VE (Recommended for iVentoy LXC Setup)
 ```bash
-# Create snapshot
-qm snapshot <vmid> fresh-install-ready --description "Fresh install ready for testing"
+# Create snapshot after Phase 1 ISO install completes successfully
+qm snapshot 100 phase1-complete --description "Phase 1 complete - ready for Phase 2+ testing"
 
-# Restore snapshot  
-qm rollback <vmid> fresh-install-ready
+# For development iteration: Restore to clean Phase 1 state
+qm rollback 100 phase1-complete
+
+# Start VM after rollback
+qm start 100
+
+# List snapshots
+qm listsnapshot 100
+
+# Optional: Create backup snapshot for long-term storage
+vzdump 100 --storage local --mode snapshot --compress gzip
 ```
+
+**Proxmox Specific Workflow:**
+1. **Deploy BlueLab ISO via iVentoy** → Complete Phase 1 setup → Verify services work
+2. **Shutdown VM**: `qm shutdown 100`  
+3. **Create snapshot**: `qm snapshot 100 phase1-complete`
+4. **For Phase 2+ testing**: Always start from this snapshot
+5. **Test new features** → If broken, rollback in seconds
+6. **When ready for production**: Enable auto-download features
 
 ### 3. Testing Iteration Cycle
 

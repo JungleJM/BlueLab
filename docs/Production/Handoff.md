@@ -81,11 +81,31 @@ This project creates a custom BlueBuild-based Linux image that provides a fully 
 ### Phase 2: Stack System (PENDING - NOT STARTED)
 **Goal**: Implement all predefined stacks and core management systems
 
-**📝 IMPORTANT TRANSITION NOTE**: Once Phase 2 begins, consider **disabling automatic ISO compilation** in GitHub Actions. Phase 2+ will focus on runtime-downloaded stacks and configurations rather than ISO-embedded changes. This will:
-- Save CI/CD resources and build time
-- Allow faster iteration on stack templates and configurations  
-- Reduce unnecessary ISO rebuilds when only runtime components change
-- Enable testing via direct script updates rather than full ISO regeneration
+**📝 IMPORTANT TRANSITION NOTES**: 
+
+**ISO Compilation**: Once Phase 2 begins, consider **disabling automatic ISO compilation** in GitHub Actions. Phase 2+ will focus on runtime-downloaded stacks and configurations rather than ISO-embedded changes.
+
+**Auto-Download Toggle**: Implement an `BLUELAB_AUTO_DOWNLOAD=false` flag in Phase 2+ development. This allows:
+- **Development testing** with manual script updates via VM snapshots
+- **Safe iteration** without affecting production deployments  
+- **Production readiness** by setting `BLUELAB_AUTO_DOWNLOAD=true` when ready
+
+```bash
+# Example implementation in first-boot script:
+BLUELAB_AUTO_DOWNLOAD=${BLUELAB_AUTO_DOWNLOAD:-false}  # Default: false for development
+
+if [ "$BLUELAB_AUTO_DOWNLOAD" = "true" ]; then
+    log_info "Auto-download enabled - fetching latest Phase 2+ components"
+    download_phase2_stacks
+else
+    log_info "Auto-download disabled - using embedded templates only"
+    # TODO: Enable auto-download for production builds
+fi
+```
+
+**Benefits**: Faster iteration cycles, safe testing, controlled production rollout
+
+**🚨 REMEMBER**: Change `BLUELAB_AUTO_DOWNLOAD=true` when creating production builds for end users
 
 #### Components:
 - [ ] **Complete Stack Implementation** - Not Started
