@@ -41,78 +41,260 @@ if [ -f "$COMPLETION_MARKER" ]; then
     exit 0
 fi
 
-# Parse kernel parameters for iVentoy configuration
+# Future: Check BlueBuild live ISO capabilities
+check_bluebuild_live_capabilities() {
+    log_info "Checking BlueBuild live ISO generation capabilities (future feature)"
+    
+    # TODO: Post-1.0 - Monitor BlueBuild for live ISO support
+    # As of 2025, BlueBuild is moving away from Anaconda (see: https://blue-build.org/blog/dnf-module/)
+    # This function will be expanded to detect when live ISO generation becomes available
+    
+    # Future implementation might check:
+    # - BlueBuild version/capabilities
+    # - Available ISO generation methods
+    # - Live boot parameter support
+    
+    # For now, always return false (installer-only mode)
+    export BLUELAB_LIVE_ISO_AVAILABLE="false"
+    export BLUELAB_AUTOMATED_INSTALL_AVAILABLE="false"
+    
+    log_info "Live ISO generation: Not yet available (installer mode only)"
+    log_info "Future: Will enable iVentoy parameter automation when BlueBuild supports it"
+}
+
+# Parse kernel parameters for iVentoy configuration (FUTURE - Post-1.0)
 parse_kernel_parameters() {
-    log_info "Parsing kernel parameters for BlueLab configuration"
+    # Check if automated install mode is available
+    check_bluebuild_live_capabilities
     
-    # Read kernel command line
-    local cmdline
-    cmdline=$(cat /proc/cmdline)
-    
-    # Extract BlueLab parameters (bluelab.* format)
-    export BLUELAB_USERNAME=""
-    export BLUELAB_PASSWORD=""
-    export BLUELAB_HOSTNAME=""
-    export BLUELAB_TIMEZONE=""
-    export BLUELAB_STACK_SELECTION=""
-    export BLUELAB_TAILSCALE_KEY=""
-    
-    # Parse each parameter
-    for param in $cmdline; do
-        case "$param" in
-            bluelab.username=*)
-                BLUELAB_USERNAME="${param#*=}"
-                log_info "Found username parameter: $BLUELAB_USERNAME"
-                ;;
-            bluelab.password=*)
-                BLUELAB_PASSWORD="${param#*=}"
-                log_info "Found password parameter (hidden)"
-                ;;
-            bluelab.hostname=*)
-                BLUELAB_HOSTNAME="${param#*=}"
-                log_info "Found hostname parameter: $BLUELAB_HOSTNAME"
-                ;;
-            bluelab.timezone=*)
-                BLUELAB_TIMEZONE="${param#*=}"
-                log_info "Found timezone parameter: $BLUELAB_TIMEZONE"
-                ;;
-            bluelab.stacks=*)
-                BLUELAB_STACK_SELECTION="${param#*=}"
-                log_info "Found stack selection: $BLUELAB_STACK_SELECTION"
-                ;;
-            bluelab.tailscale_key=*)
-                BLUELAB_TAILSCALE_KEY="${param#*=}"
-                log_info "Found Tailscale auth key (hidden)"
-                ;;
-        esac
-    done
+    if [ "$BLUELAB_AUTOMATED_INSTALL_AVAILABLE" = "true" ]; then
+        log_info "Parsing kernel parameters for BlueLab configuration"
+        
+        # Read kernel command line
+        local cmdline
+        cmdline=$(cat /proc/cmdline)
+        
+        # Extract BlueLab parameters (bluelab.* format)
+        export BLUELAB_USERNAME=""
+        export BLUELAB_PASSWORD=""
+        export BLUELAB_HOSTNAME=""
+        export BLUELAB_TIMEZONE=""
+        export BLUELAB_STACK_SELECTION=""
+        export BLUELAB_TAILSCALE_KEY=""
+        
+        # Parse each parameter
+        for param in $cmdline; do
+            case "$param" in
+                bluelab.username=*)
+                    BLUELAB_USERNAME="${param#*=}"
+                    log_info "Found username parameter: $BLUELAB_USERNAME"
+                    ;;
+                bluelab.password=*)
+                    BLUELAB_PASSWORD="${param#*=}"
+                    log_info "Found password parameter (hidden)"
+                    ;;
+                bluelab.hostname=*)
+                    BLUELAB_HOSTNAME="${param#*=}"
+                    log_info "Found hostname parameter: $BLUELAB_HOSTNAME"
+                    ;;
+                bluelab.timezone=*)
+                    BLUELAB_TIMEZONE="${param#*=}"
+                    log_info "Found timezone parameter: $BLUELAB_TIMEZONE"
+                    ;;
+                bluelab.stacks=*)
+                    BLUELAB_STACK_SELECTION="${param#*=}"
+                    log_info "Found stack selection: $BLUELAB_STACK_SELECTION"
+                    ;;
+                bluelab.tailscale_key=*)
+                    BLUELAB_TAILSCALE_KEY="${param#*=}"
+                    log_info "Found Tailscale auth key (hidden)"
+                    ;;
+            esac
+        done
+    else
+        log_info "Automated install not available - using interactive mode"
+        # Initialize empty variables for interactive setup
+        export BLUELAB_USERNAME=""
+        export BLUELAB_PASSWORD=""
+        export BLUELAB_HOSTNAME=""
+        export BLUELAB_TIMEZONE=""
+        export BLUELAB_STACK_SELECTION=""
+        export BLUELAB_TAILSCALE_KEY=""
+    fi
 }
 
 
-# Interactive fallback for missing parameters
+# Credential management system
+setup_credential_strategy() {
+    log_info "Setting up BlueLab credential management"
+    
+    echo ""
+    echo "=== BlueLab Credential Management ==="
+    echo "Multiple services will ask for usernames and passwords."
+    echo "You can choose how to handle this:"
+    echo ""
+    echo "1. Use system credentials (simple - use your current username/password)"
+    echo "2. Create single app-specific credentials (one username/password for all services)"
+    echo "3. Generate unique credentials per service (most secure - auto-generated)"
+    echo ""
+    
+    read -p "Choose credential strategy [1-3, default: 1]: " cred_choice
+    cred_choice=${cred_choice:-1}
+    
+    case "$cred_choice" in
+        1)
+            setup_system_credentials
+            ;;
+        2)
+            setup_single_app_credentials
+            ;;
+        3)
+            setup_generated_credentials
+            ;;
+        *)
+            log_info "Invalid choice, using system credentials"
+            setup_system_credentials
+            ;;
+    esac
+}
+
+# Use system username and password
+setup_system_credentials() {
+    log_info "Using system credentials for all BlueLab services"
+    
+    # Get current user (the one who will own the services)
+    local current_user
+    current_user=$(who am i | awk '{print $1}' 2>/dev/null || echo "$SUDO_USER")
+    
+    if [ -z "$current_user" ]; then
+        current_user=$(id -un 1000 2>/dev/null || echo "bluelab")
+    fi
+    
+    BLUELAB_USERNAME="$current_user"
+    
+    echo "Username: $BLUELAB_USERNAME"
+    read -s -p "Enter your system password: " BLUELAB_PASSWORD
+    echo
+    
+    export BLUELAB_CREDENTIAL_STRATEGY="system"
+    export BLUELAB_CREDENTIAL_FILE=""
+    
+    log_info "System credentials configured"
+}
+
+# Create single app-specific credentials
+setup_single_app_credentials() {
+    log_info "Creating single app-specific credentials"
+    
+    echo ""
+    echo "Create a single username and password for all BlueLab services:"
+    
+    while [ -z "$BLUELAB_USERNAME" ]; do
+        read -p "Enter app username: " BLUELAB_USERNAME
+        if [ -z "$BLUELAB_USERNAME" ]; then
+            echo "Username cannot be empty. Please try again."
+        fi
+    done
+    
+    while [ -z "$BLUELAB_PASSWORD" ]; do
+        read -s -p "Enter app password: " BLUELAB_PASSWORD
+        echo
+        if [ -z "$BLUELAB_PASSWORD" ]; then
+            echo "Password cannot be empty. Please try again."
+        fi
+    done
+    
+    export BLUELAB_CREDENTIAL_STRATEGY="single"
+    export BLUELAB_CREDENTIAL_FILE=""
+    
+    log_info "Single app credentials configured"
+}
+
+# Generate unique credentials per service
+setup_generated_credentials() {
+    log_info "Generating unique credentials per service"
+    
+    echo ""
+    echo "Generating secure credentials for each service..."
+    
+    # Create credentials directory
+    mkdir -p "$CONFIG_DIR/credentials"
+    local cred_file="$CONFIG_DIR/credentials/service-credentials.json"
+    
+    # Generate master credentials for system management
+    BLUELAB_USERNAME="bluelab-admin"
+    BLUELAB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+    
+    # Generate service-specific credentials
+    local services=("homepage" "dockge" "jellyfin" "sonarr" "radarr" "navidrome" "immich" "calibre" "nextcloud")
+    
+    cat > "$cred_file" << EOF
+{
+  "generated_date": "$(date -Iseconds)",
+  "strategy": "generated",
+  "master_admin": {
+    "username": "$BLUELAB_USERNAME",
+    "password": "$BLUELAB_PASSWORD",
+    "note": "Master admin account for system management"
+  },
+  "services": {
+EOF
+
+    local first_service=true
+    for service in "${services[@]}"; do
+        local service_user="${service}-admin"
+        local service_pass=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        
+        if [ "$first_service" = true ]; then
+            first_service=false
+        else
+            echo "," >> "$cred_file"
+        fi
+        
+        cat >> "$cred_file" << EOF
+    "$service": {
+      "username": "$service_user",
+      "password": "$service_pass",
+      "note": "Auto-generated credentials for $service"
+    }
+EOF
+    done
+    
+    cat >> "$cred_file" << EOF
+  },
+  "bitwarden_import": {
+    "ready": true,
+    "note": "This file can be imported into Bitwarden when Security Stack is added"
+  }
+}
+EOF
+
+    # Set secure permissions
+    chmod 600 "$cred_file"
+    chown root:root "$cred_file"
+    
+    export BLUELAB_CREDENTIAL_STRATEGY="generated"
+    export BLUELAB_CREDENTIAL_FILE="$cred_file"
+    
+    echo ""
+    echo "✅ Unique credentials generated for all services"
+    echo "📁 Credential file: $cred_file"
+    echo "🔒 File permissions: 600 (root only)"
+    echo ""
+    echo "🛡️  Future: This file can be imported into Bitwarden (Security Stack)"
+    echo "💡 Your master admin credentials:"
+    echo "   Username: $BLUELAB_USERNAME"
+    echo "   Password: [stored securely in credential file]"
+    
+    log_info "Generated credentials configured and saved securely"
+}
+
+# Interactive setup for remaining parameters
 interactive_setup() {
-    log_info "Starting interactive setup for missing parameters"
+    log_info "Starting interactive BlueLab setup"
     
-    # Username
-    if [ -z "$BLUELAB_USERNAME" ]; then
-        while [ -z "$BLUELAB_USERNAME" ]; do
-            read -p "Enter username for BlueLab admin user: " BLUELAB_USERNAME
-            if [ -z "$BLUELAB_USERNAME" ]; then
-                echo "Username cannot be empty. Please try again."
-            fi
-        done
-    fi
-    
-    # Password
-    if [ -z "$BLUELAB_PASSWORD" ]; then
-        while [ -z "$BLUELAB_PASSWORD" ]; do
-            read -s -p "Enter password for $BLUELAB_USERNAME: " BLUELAB_PASSWORD
-            echo
-            if [ -z "$BLUELAB_PASSWORD" ]; then
-                echo "Password cannot be empty. Please try again."
-            fi
-        done
-    fi
+    # Set up credential strategy first
+    setup_credential_strategy
     
     # Hostname
     if [ -z "$BLUELAB_HOSTNAME" ]; then
@@ -483,6 +665,10 @@ BLUELAB_TIMEZONE=$BLUELAB_TIMEZONE
 BLUELAB_VERSION=Phase1
 BLUELAB_INSTALL_DATE=$(date -Iseconds)
 
+# Credential Management
+BLUELAB_CREDENTIAL_STRATEGY=${BLUELAB_CREDENTIAL_STRATEGY:-system}
+BLUELAB_CREDENTIAL_FILE=${BLUELAB_CREDENTIAL_FILE:-}
+
 # Docker configuration
 DOCKER_DATA_ROOT=/var/lib/bluelab/data
 COMPOSE_PROJECT_NAME=bluelab
@@ -490,7 +676,20 @@ COMPOSE_PROJECT_NAME=bluelab
 # Network configuration - Using host networking for simplicity
 BLUELAB_NETWORK_MODE=host
 HOST_IP=$(hostname -I | awk '{print $1}')
+
+# Future features
+BLUELAB_LIVE_ISO_AVAILABLE=${BLUELAB_LIVE_ISO_AVAILABLE:-false}
+BLUELAB_AUTOMATED_INSTALL_AVAILABLE=${BLUELAB_AUTOMATED_INSTALL_AVAILABLE:-false}
 EOF
+
+    # Save credential strategy for future reference
+    if [ -n "$BLUELAB_CREDENTIAL_FILE" ] && [ -f "$BLUELAB_CREDENTIAL_FILE" ]; then
+        log_info "Credential file saved: $BLUELAB_CREDENTIAL_FILE"
+        echo "🔐 Credentials saved securely"
+        echo "   Strategy: $BLUELAB_CREDENTIAL_STRATEGY"
+        echo "   File: $BLUELAB_CREDENTIAL_FILE"
+        echo "   Future: Can be imported to Bitwarden (Security Stack)"
+    fi
 
     log_info "Global configuration generated"
 }
@@ -725,6 +924,12 @@ main() {
     
     log_info "=========================================="
     log_info "IMPORTANT: Please log out and back in to activate Docker group permissions"
+    log_info ""
+    log_info "🎮 UJUST COMMANDS:"
+    log_info "  • ujust bluelab-setup   - Reconfigure BlueLab system"
+    log_info "  • ujust bluelab-status  - Show service status and URLs"
+    log_info "  • ujust bluelab-logs    - View system logs"
+    log_info "  • ujust bluelab-reset   - Reset configuration (advanced)"
     log_info ""
     log_info "🌐 ACCESS YOUR BLUELAB SERVICES:"
     
