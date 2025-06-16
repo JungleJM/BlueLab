@@ -1,0 +1,15 @@
+[Unit]
+Description=BlueLab System Updater
+Documentation=https://github.com/your-username/bluelab
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/bluelab-updater
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

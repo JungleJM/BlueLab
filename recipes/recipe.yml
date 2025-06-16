@@ -17,6 +17,7 @@ modules:
     system:
       enabled:
         - bluelab-first-boot.service
+        - bluelab-updater.timer
         
   - type: rpm-ostree
     install:

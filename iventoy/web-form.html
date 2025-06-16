@@ -116,13 +116,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo"><� BlueLab</div>
+            <div class="logo">🏠 BlueLab</div>
             <div class="subtitle">Automated Homelab Configuration</div>
         </div>
         
         <form id="bluelabForm">
             <div class="section">
-                <div class="section-title">=d User Account</div>
+                <div class="section-title">👤 User Account</div>
                 
                 <div class="form-group">
                     <label for="username">Admin Username *</label>
@@ -140,7 +140,7 @@
             </div>
             
             <div class="section">
-                <div class="section-title">< Network Configuration</div>
+                <div class="section-title">🌐 Network Configuration</div>
                 
                 <div class="form-group">
                     <label for="hostname">System Hostname</label>
@@ -170,7 +170,7 @@
             </div>
             
             <div class="section">
-                <div class="section-title">=� Service Stacks</div>
+                <div class="section-title">📦 Service Stacks</div>
                 
                 <div class="form-group">
                     <label for="stacks">Initial Stack Selection</label>
@@ -190,7 +190,28 @@
             </div>
             
             <div class="section">
-                <div class="section-title">= Remote Access <span class="optional">(Optional)</span></div>
+                <div class="section-title">💾 Personal Cloud Storage <span class="optional">(Optional)</span></div>
+                
+                <div class="form-group">
+                    <label for="create_cloud_drive">Create Personal Cloud Drive</label>
+                    <select id="create_cloud_drive" name="bluelab.create_cloud_drive">
+                        <option value="no">No - Skip cloud drive setup</option>
+                        <option value="yes">Yes - Create cloud drive on largest drive</option>
+                    </select>
+                    <div class="help-text">
+                        Automatically set up ZFS + SMB file sharing on your largest drive<br>
+                        Access your files from anywhere: Documents, Photos, Music, Videos
+                    </div>
+                </div>
+                
+                <div class="info">
+                    <strong>Personal Cloud includes:</strong> ZFS storage, SMB file sharing, Tailscale remote access<br>
+                    <strong>Access via:</strong> \\bluelab.local\cloud or \\bluelab\cloud (remote)
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🔒 Remote Access <span class="optional">(Optional)</span></div>
                 
                 <div class="form-group">
                     <label for="tailscale_key">Tailscale Auth Key</label>
