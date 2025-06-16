@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueLab Configuration</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input[type="text"], input[type="password"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .help-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .section {
+            border-top: 2px solid #f0f0f0;
+            padding-top: 20px;
+            margin-top: 25px;
+        }
+        
+        .section:first-child {
+            border-top: none;
+            padding-top: 0;
+            margin-top: 0;
+        }
+        
+        .section-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .optional {
+            color: #999;
+            font-weight: normal;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo"><à BlueLab</div>
+            <div class="subtitle">Automated Homelab Configuration</div>
+        </div>
+        
+        <form id="bluelabForm">
+            <div class="section">
+                <div class="section-title">=d User Account</div>
+                
+                <div class="form-group">
+                    <label for="username">Admin Username *</label>
+                    <input type="text" id="username" name="bluelab.username" required 
+                           placeholder="bluelab" value="bluelab">
+                    <div class="help-text">Primary administrator account name</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Admin Password *</label>
+                    <input type="password" id="password" name="bluelab.password" required 
+                           placeholder="Enter a secure password">
+                    <div class="help-text">Use a strong password (8+ characters recommended)</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">< Network Configuration</div>
+                
+                <div class="form-group">
+                    <label for="hostname">System Hostname</label>
+                    <input type="text" id="hostname" name="bluelab.hostname" 
+                           placeholder="bluelab" value="bluelab">
+                    <div class="help-text">Name for your homelab system (will be accessible as hostname.local)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="timezone">Timezone</label>
+                    <select id="timezone" name="bluelab.timezone">
+                        <option value="America/New_York">America/New_York (EST/EDT)</option>
+                        <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                        <option value="America/Denver">America/Denver (MST/MDT)</option>
+                        <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                        <option value="America/Phoenix">America/Phoenix (MST)</option>
+                        <option value="Europe/London">Europe/London (GMT/BST)</option>
+                        <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                        <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                        <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                        <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                        <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                        <option value="UTC">UTC (Coordinated Universal Time)</option>
+                    </select>
+                    <div class="help-text">Select your local timezone for proper scheduling</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">=æ Service Stacks</div>
+                
+                <div class="form-group">
+                    <label for="stacks">Initial Stack Selection</label>
+                    <select id="stacks" name="bluelab.stacks">
+                        <option value="monitoring">Monitoring Only (Recommended for first install)</option>
+                        <option value="monitoring,media">Monitoring + Media Stack</option>
+                        <option value="monitoring,media,photos">Monitoring + Media + Photos</option>
+                        <option value="monitoring,productivity">Monitoring + Productivity</option>
+                        <option value="all">All Stacks (Advanced)</option>
+                    </select>
+                    <div class="help-text">You can add more stacks later through the web interface</div>
+                </div>
+                
+                <div class="info">
+                    <strong>Monitoring Stack includes:</strong> Homepage dashboard and Dockge container manager
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">= Remote Access <span class="optional">(Optional)</span></div>
+                
+                <div class="form-group">
+                    <label for="tailscale_key">Tailscale Auth Key</label>
+                    <input type="text" id="tailscale_key" name="bluelab.tailscale_key" 
+                           placeholder="tskey-auth-xxxxx (optional)">
+                    <div class="help-text">
+                        Enable secure remote access to your homelab from anywhere<br>
+                        Get your auth key from: <a href="https://login.tailscale.com/admin/settings/keys" target="_blank">Tailscale Admin Console</a>
+                    </div>
+                </div>
+                
+                <div class="warning">
+                    <strong>Note:</strong> If you skip Tailscale now, you can set it up later using the command: <code>ujust toggle-tailscale</code>
+                </div>
+            </div>
+            
+            <div class="info">
+                <strong>What happens next:</strong><br>
+                1. Your system will boot and configure itself automatically<br>
+                2. Services will be deployed based on your selections<br>
+                3. You'll be able to access your homelab at: <strong>http://[hostname].local:3000</strong><br>
+                4. Setup typically takes 10-15 minutes after first boot
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Form validation and enhancement
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('bluelabForm');
+            const hostname = document.getElementById('hostname');
+            const username = document.getElementById('username');
+            
+            // Auto-sync hostname with username if they match
+            username.addEventListener('input', function() {
+                if (hostname.value === '' || hostname.value === username.defaultValue) {
+                    hostname.value = username.value;
+                }
+            });
+            
+            // Validate hostname format
+            hostname.addEventListener('input', function() {
+                const value = this.value;
+                const valid = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/.test(value);
+                
+                if (!valid && value !== '') {
+                    this.style.borderColor = '#e74c3c';
+                } else {
+                    this.style.borderColor = '#e1e5e9';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
