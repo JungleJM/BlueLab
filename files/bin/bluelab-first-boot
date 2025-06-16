@@ -377,6 +377,29 @@ setup_system() {
     # Set timezone
     timedatectl set-timezone "$BLUELAB_TIMEZONE"
     log_info "Timezone set to: $BLUELAB_TIMEZONE"
+    
+    # Fix /etc/hosts for proper hostname resolution
+    log_info "Configuring /etc/hosts for proper hostname resolution"
+    
+    # Get the actual network IP (not localhost)
+    local network_ip
+    network_ip=$(ip route get 1.1.1.1 | awk '{print $7; exit}' 2>/dev/null)
+    
+    if [ -n "$network_ip" ] && [ "$network_ip" != "127.0.0.1" ]; then
+        # Remove old entries for this hostname
+        sed -i "/\s*$BLUELAB_HOSTNAME\s*/d" /etc/hosts
+        sed -i "/\s*$BLUELAB_HOSTNAME\.local\s*/d" /etc/hosts
+        
+        # Add new entry with network IP
+        echo "$network_ip $BLUELAB_HOSTNAME $BLUELAB_HOSTNAME.local" >> /etc/hosts
+        log_info "Updated /etc/hosts: $network_ip -> $BLUELAB_HOSTNAME.local"
+    else
+        log_warn "Could not determine network IP, using localhost fallback"
+        # Ensure localhost entry exists
+        if ! grep -q "$BLUELAB_HOSTNAME" /etc/hosts; then
+            echo "127.0.1.1 $BLUELAB_HOSTNAME $BLUELAB_HOSTNAME.local" >> /etc/hosts
+        fi
+    fi
 }
 
 # Configure Tailscale if auth key provided
@@ -502,11 +525,26 @@ EOF
 
         # No need for custom networks with host networking
         
-        # Start monitoring stack
-        cd "$CONFIG_DIR/stacks/monitoring"
-        docker-compose up -d
+        # Start monitoring stack as the target user (who has Docker permissions)
+        log_info "Starting monitoring stack as user: $BLUELAB_USERNAME"
         
-        log_info "Monitoring stack deployed successfully"
+        # Run docker-compose as the target user with Docker group permissions
+        sudo -u "$BLUELAB_USERNAME" bash -c "cd '$CONFIG_DIR/stacks/monitoring' && docker-compose up -d"
+        
+        # Verify containers are running
+        if sudo -u "$BLUELAB_USERNAME" docker ps -q --filter "name=bluelab-homepage" | grep -q .; then
+            log_info "Homepage container started successfully"
+        else
+            log_error "Homepage container failed to start"
+        fi
+        
+        if sudo -u "$BLUELAB_USERNAME" docker ps -q --filter "name=bluelab-dockge" | grep -q .; then
+            log_info "Dockge container started successfully"
+        else
+            log_error "Dockge container failed to start"
+        fi
+        
+        log_info "Monitoring stack deployment completed"
     else
         log_info "Monitoring stack not selected, skipping deployment"
     fi
