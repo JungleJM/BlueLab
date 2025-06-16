@@ -150,21 +150,21 @@ interactive_setup() {
         read -p "Enter Tailscale auth key (optional, press Enter to skip): " BLUELAB_TAILSCALE_KEY
     fi
     
-    # TODO: Phase 2+ - ZFS Media Drive Setup
-    # if [ -z "$BLUELAB_CREATE_MEDIA_DRIVE" ]; then
+    # TODO: Phase 2+ - ZFS Personal Cloud Drive Setup
+    # if [ -z "$BLUELAB_CREATE_CLOUD_DRIVE" ]; then
     #     echo ""
     #     echo "=== Storage Configuration ==="
     #     echo "📦 Detected drives:"
     #     # Display available drives with sizes
     #     # lsblk -d -o NAME,SIZE,TYPE | grep disk
     #     echo ""
-    #     read -p "Create a media drive from your largest drive for shared storage? [y/N]: " BLUELAB_CREATE_MEDIA_DRIVE
-    #     BLUELAB_CREATE_MEDIA_DRIVE="${BLUELAB_CREATE_MEDIA_DRIVE:-n}"
+    #     read -p "Create a personal cloud drive from your largest drive? [y/N]: " BLUELAB_CREATE_CLOUD_DRIVE
+    #     BLUELAB_CREATE_CLOUD_DRIVE="${BLUELAB_CREATE_CLOUD_DRIVE:-n}"
     #     
-    #     if [[ "$BLUELAB_CREATE_MEDIA_DRIVE" =~ ^[Yy]$ ]]; then
-    #         echo "✅ Will setup ZFS + SMB on largest drive"
-    #         echo "📁 Accessible via: \\\\bluelab.local\\media or \\\\bluelab\\media (Tailscale)"
-    #         export BLUELAB_SETUP_ZFS_MEDIA="true"
+    #     if [[ "$BLUELAB_CREATE_CLOUD_DRIVE" =~ ^[Yy]$ ]]; then
+    #         echo "✅ Will setup ZFS + SMB personal cloud storage on largest drive"
+    #         echo "📁 Accessible via: \\\\bluelab.local\\cloud or \\\\bluelab\\cloud (Tailscale)"
+    #         export BLUELAB_SETUP_ZFS_CLOUD="true"
     #     fi
     # fi
     
@@ -641,29 +641,30 @@ deploy_additional_stacks() {
     fi
 }
 
-# TODO: Phase 2+ - Setup ZFS Media Drive (SMB Share Stack)
-setup_zfs_media_drive() {
-    if [ "${BLUELAB_SETUP_ZFS_MEDIA:-false}" = "true" ]; then
-        log_info "Setting up ZFS media drive and SMB share"
+# TODO: Phase 2+ - Setup ZFS Personal Cloud Drive (SMB Share Stack)
+setup_zfs_cloud_drive() {
+    if [ "${BLUELAB_SETUP_ZFS_CLOUD:-false}" = "true" ]; then
+        log_info "Setting up ZFS personal cloud drive and SMB share"
         
         # 1. Detect largest drive (excluding system drive)
         # local largest_drive
         # largest_drive=$(lsblk -d -p -n -o NAME,SIZE --bytes | grep -v "$(findmnt -n -o SOURCE /)" | sort -k2 -nr | head -n1 | awk '{print $1}')
         
         # 2. Create ZFS pool
-        # log_info "Creating ZFS pool 'media' on drive: $largest_drive"
-        # zpool create media "$largest_drive"
+        # log_info "Creating ZFS pool 'cloud' on drive: $largest_drive"
+        # zpool create cloud "$largest_drive"
         
-        # 3. Create ZFS datasets
-        # zfs create media/movies
-        # zfs create media/tv
-        # zfs create media/music
-        # zfs create media/photos
-        # zfs create media/books
-        # zfs create media/downloads
+        # 3. Create ZFS datasets for personal cloud storage
+        # zfs create cloud/documents     # Office docs, PDFs, etc.
+        # zfs create cloud/photos        # Photo storage and albums
+        # zfs create cloud/videos        # Personal videos and movies
+        # zfs create cloud/music         # Music collection
+        # zfs create cloud/downloads     # Download staging area
+        # zfs create cloud/backups       # Backup storage
+        # zfs create cloud/shared        # Family/household shared files
         
         # 4. Set permissions
-        # chown -R "$BLUELAB_USERNAME:$BLUELAB_USERNAME" /media
+        # chown -R "$BLUELAB_USERNAME:$BLUELAB_USERNAME" /cloud
         
         # 5. Install and configure Samba
         # dnf install -y samba samba-common-tools
@@ -672,16 +673,17 @@ setup_zfs_media_drive() {
         # cat > /etc/samba/smb.conf << EOF
         # [global]
         #     workgroup = WORKGROUP
-        #     server string = BlueLab Media Server
+        #     server string = BlueLab Personal Cloud
         #     security = user
         #     map to guest = Bad User
         #     
-        # [media]
-        #     path = /media
+        # [cloud]
+        #     path = /cloud
         #     browseable = yes
         #     writable = yes
         #     guest ok = no
         #     valid users = $BLUELAB_USERNAME
+        #     comment = Personal Cloud Storage
         # EOF
         # 
         # # Set SMB password (same as user password)
@@ -691,11 +693,11 @@ setup_zfs_media_drive() {
         # systemctl enable smb nmb
         # systemctl start smb nmb
         
-        log_warn "🚧 ZFS Media Drive setup will be implemented in Phase 2+"
+        log_warn "🚧 ZFS Personal Cloud Drive setup will be implemented in Phase 2+"
         log_info "   Will include: ZFS pool, SMB shares, Tailscale integration"
-        log_info "   Access will be: \\\\bluelab.local\\media and \\\\bluelab\\media"
+        log_info "   Access will be: \\\\bluelab.local\\cloud and \\\\bluelab\\cloud"
     else
-        log_info "ZFS media drive setup skipped"
+        log_info "ZFS personal cloud drive setup skipped"
     fi
 }
 
@@ -717,7 +719,7 @@ main() {
     generate_configs
     deploy_monitoring_stack
     deploy_additional_stacks
-    setup_zfs_media_drive
+    setup_zfs_cloud_drive
     
     log_info "🎉 BlueLab first boot configuration completed successfully!"
     

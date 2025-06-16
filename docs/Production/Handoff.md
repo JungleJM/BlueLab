@@ -118,9 +118,9 @@ fi
   
 - [ ] **Automatic Storage Management** - Not Started
   - **Auto-Install Target**: Detect and install to smallest drive (prefer NVMe)
-  - **ZFS Media Drive**: Auto-setup largest drive as ZFS pool for media storage
+  - **ZFS Personal Cloud Drive**: Auto-setup largest drive as ZFS pool for personal cloud storage
   - **SMB Integration**: Automatic Samba share with user credentials
-  - **Interactive Setup**: "Create media drive from largest drive?" questionnaire
+  - **Interactive Setup**: "Create personal cloud drive from largest drive?" questionnaire
   - **Tailscale Integration**: SMB accessible via Tailscale network
   
 - [ ] **Dockge Integration** - Not Started

@@ -2,7 +2,7 @@
 
 ## Overview
 
-BlueLab should automatically install to the optimal drive and optionally set up media storage on larger drives without user intervention.
+BlueLab should automatically install to the optimal drive and optionally set up personal cloud storage on larger drives without user intervention.
 
 ## Phase 1: Automatic Installation Target Selection
 
@@ -63,7 +63,7 @@ detect_optimal_install_drive() {
 }
 ```
 
-## Phase 2+: Automatic ZFS Media Drive Setup
+## Phase 2+: Automatic ZFS Personal Cloud Drive Setup
 
 ### Requirements
 - **Detect largest available drive** (excluding system drive)
@@ -77,40 +77,42 @@ detect_optimal_install_drive() {
 === Storage Configuration ===
 📦 Detected drives:
   • /dev/nvme0n1 (500GB) - System drive
-  • /dev/sda1 (4TB) - Available for media storage
-  • /dev/sdb1 (2TB) - Available for media storage
+  • /dev/sda1 (4TB) - Available for personal cloud storage
+  • /dev/sdb1 (2TB) - Available for personal cloud storage
 
-Create a media drive from your largest drive for shared storage? [y/N]: y
+Create a personal cloud drive from your largest drive? [y/N]: y
 
-✅ Will setup ZFS + SMB on /dev/sda1 (4TB)
-📁 Accessible via: \\bluelab.local\media or \\bluelab\media (Tailscale)
+✅ Will setup ZFS + SMB personal cloud storage on /dev/sda1 (4TB)
+📁 Accessible via: \\bluelab.local\cloud or \\bluelab\cloud (Tailscale)
 ```
 
 ### ZFS Dataset Structure
 ```
-media/                 # Root pool
-├── movies/           # Movie files
-├── tv/               # TV show files  
-├── music/            # Music files
-├── photos/           # Photo storage
-├── books/            # Ebook files
-└── downloads/        # Download staging area
+cloud/                 # Root pool
+├── documents/        # Office docs, PDFs, etc.
+├── photos/           # Photo storage and albums
+├── videos/           # Personal videos and movies
+├── music/            # Music collection
+├── downloads/        # Download staging area
+├── backups/          # Backup storage
+└── shared/           # Family/household shared files
 ```
 
 ### SMB Configuration
 ```ini
 [global]
     workgroup = WORKGROUP
-    server string = BlueLab Media Server
+    server string = BlueLab Personal Cloud
     security = user
     map to guest = Bad User
     
-[media]
-    path = /media
+[cloud]
+    path = /cloud
     browseable = yes
     writable = yes
     guest ok = no
     valid users = %BLUELAB_USERNAME%
+    comment = Personal Cloud Storage
 ```
 
 ### Implementation Steps
@@ -128,13 +130,14 @@ media/                 # Root pool
 2. **ZFS Pool Creation**
    ```bash
    # Create pool and datasets
-   zpool create media "$largest_drive"
-   zfs create media/movies
-   zfs create media/tv
-   zfs create media/music
-   zfs create media/photos
-   zfs create media/books
-   zfs create media/downloads
+   zpool create cloud "$largest_drive"
+   zfs create cloud/documents
+   zfs create cloud/photos
+   zfs create cloud/videos
+   zfs create cloud/music
+   zfs create cloud/downloads
+   zfs create cloud/backups
+   zfs create cloud/shared
    ```
 
 3. **Samba Setup**
@@ -157,12 +160,12 @@ media/                 # Root pool
 ## Network Access Patterns
 
 ### Local Network
-- **SMB**: `\\bluelab.local\media`
-- **IP-based**: `\\192.168.1.100\media`
+- **SMB**: `\\bluelab.local\cloud`
+- **IP-based**: `\\192.168.1.100\cloud`
 
 ### Remote (Tailscale)
-- **Hostname**: `\\bluelab\media`
-- **Direct IP**: `\\100.x.x.x\media`
+- **Hostname**: `\\bluelab\cloud`
+- **Direct IP**: `\\100.x.x.x\cloud`
 
 ## Security Considerations
 
