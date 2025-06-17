@@ -3,11 +3,12 @@
 ## Project Status Overview
 
 **Project Name**: BlueLab (Bluefin-Based Homelab)  
-**Current Phase**: Phase 1 - Core Foundation  
-**Overall Progress**: 100% (Phase 1 Complete - Ready for VM Testing)  
-**Development Period**: June 12-16, 2025 (4 days)  
-**Last Updated**: June 16, 2025  
-**Next Milestone**: VM validation of generated ISO functionality
+**Current Phase**: Phase 1 - Core Foundation (95% Complete)  
+**Overall Progress**: 95% (Installer timing issues during BlueBuild/BlueFin transition)  
+**Development Period**: June 12-17, 2025 (5+ days)  
+**Last Updated**: June 17, 2025  
+**Current Status**: Taking break to work on Phase 2 - see BlueLab Stacks repo  
+**Next Milestone**: Resume installer work or pivot to Phase 2 depending on BlueBuild ecosystem
 
 ## Project Context
 
@@ -25,16 +26,19 @@ This project creates a custom BlueBuild-based Linux image that provides a fully 
 
 ### Phase 1: Core Foundation
 - **Start Date**: June 12, 2025
-- **End Date**: June 16, 2025  
-- **Duration**: 4 days
-- **Status**: 95% Complete (ISO Generated, VM Testing Pending)
+- **End Date**: June 17, 2025 (Paused)  
+- **Duration**: 5+ days
+- **Status**: 95% Complete (ISO builds successfully, installer timing issues remain)
+- **Issue**: BlueLab first-boot conflicts with GNOME Initial Setup during BlueBuild/BlueFin installer transition period
 - **Key Milestones**:
   - Day 1-2: Initial setup, CI/CD configuration, BlueBuild template debugging
   - Day 3: First-boot system implementation, network architecture design
   - Day 4: Final integration, documentation updates, ISO generation success
 
+### Current Work:
+- **Phase 2**: Stack System Implementation (IN PROGRESS - See [BlueLab Stacks Repository](https://github.com/JungleJM/BlueLab-Stacks))
+
 ### Future Phases (Planned):
-- **Phase 2**: Stack System Implementation (TBD)
 - **Phase 3**: Advanced Features (TBD)  
 - **Phase 4**: Polish & Production Ready (TBD)
 
