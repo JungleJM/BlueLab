@@ -26,3 +26,8 @@ modules:
       - jq
       - yq
       - git
+      - tree
+      - gettext
+      - htop
+      - iotop
+      - nethogs
