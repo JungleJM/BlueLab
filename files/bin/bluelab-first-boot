@@ -138,7 +138,13 @@ setup_credential_strategy() {
     echo "3. Generate unique credentials per service (most secure - auto-generated)"
     echo ""
     
-    read -p "Choose credential strategy [1-3, default: 1]: " cred_choice
+    # Use default option (1) if non-interactive
+    if [[ -t 0 ]] && [[ "${BLUELAB_AUTO_INSTALL:-false}" != "true" ]]; then
+        read -p "Choose credential strategy [1-3, default: 1]: " cred_choice
+    else
+        log_info "Non-interactive mode: using default credential strategy (1 - system credentials)"
+        cred_choice="1"
+    fi
     cred_choice=${cred_choice:-1}
     
     case "$cred_choice" in
@@ -173,8 +179,18 @@ setup_system_credentials() {
     BLUELAB_USERNAME="$current_user"
     
     echo "Username: $BLUELAB_USERNAME"
-    read -s -p "Enter your system password: " BLUELAB_PASSWORD
-    echo
+    
+    # Use default password if non-interactive or already set
+    if [[ -n "$BLUELAB_PASSWORD" ]]; then
+        log_info "Using pre-configured password"
+    elif [[ -t 0 ]] && [[ "${BLUELAB_AUTO_INSTALL:-false}" != "true" ]]; then
+        read -s -p "Enter your system password: " BLUELAB_PASSWORD
+        echo
+    else
+        # Generate a default password for non-interactive mode
+        BLUELAB_PASSWORD="bluelab123"
+        log_info "Non-interactive mode: using default password"
+    fi
     
     export BLUELAB_CREDENTIAL_STRATEGY="system"
     export BLUELAB_CREDENTIAL_FILE=""
@@ -323,7 +339,14 @@ EOF
     
     echo "=============================================================================="
     echo ""
-    read -p "Press Enter to continue with BlueLab setup..."
+    
+    # Skip interactive prompt if running as systemd service or non-interactive
+    if [[ -t 0 ]] && [[ "${BLUELAB_AUTO_INSTALL:-false}" != "true" ]]; then
+        read -p "Press Enter to continue with BlueLab setup..."
+    else
+        log_info "Running in non-interactive mode, continuing automatically..."
+        sleep 2
+    fi
     echo ""
 }
 
@@ -339,13 +362,21 @@ interactive_setup() {
     
     # Hostname
     if [ -z "$BLUELAB_HOSTNAME" ]; then
-        read -p "Enter hostname for this system [bluelab]: " BLUELAB_HOSTNAME
+        if [[ -t 0 ]] && [[ "${BLUELAB_AUTO_INSTALL:-false}" != "true" ]]; then
+            read -p "Enter hostname for this system [bluelab]: " BLUELAB_HOSTNAME
+        else
+            log_info "Non-interactive mode: using default hostname (bluelab)"
+        fi
         BLUELAB_HOSTNAME="${BLUELAB_HOSTNAME:-bluelab}"
     fi
     
     # Timezone
     if [ -z "$BLUELAB_TIMEZONE" ]; then
-        read -p "Enter timezone [America/New_York]: " BLUELAB_TIMEZONE
+        if [[ -t 0 ]] && [[ "${BLUELAB_AUTO_INSTALL:-false}" != "true" ]]; then
+            read -p "Enter timezone [America/New_York]: " BLUELAB_TIMEZONE
+        else
+            log_info "Non-interactive mode: using default timezone (America/New_York)"
+        fi
         BLUELAB_TIMEZONE="${BLUELAB_TIMEZONE:-America/New_York}"
     fi
     
@@ -364,13 +395,22 @@ interactive_setup() {
         echo "  • gaming      - Steam, Lutris integration"
         echo "  • smb-share   - File sharing with ZFS"
         echo ""
-        read -p "Enter additional stacks to install (optional): " BLUELAB_STACK_SELECTION
+        if [[ -t 0 ]] && [[ "${BLUELAB_AUTO_INSTALL:-false}" != "true" ]]; then
+            read -p "Enter additional stacks to install (optional): " BLUELAB_STACK_SELECTION
+        else
+            log_info "Non-interactive mode: installing monitoring stack only"
+        fi
         BLUELAB_STACK_SELECTION="${BLUELAB_STACK_SELECTION:-}"
     fi
     
     # Tailscale auth key (optional)
     if [ -z "$BLUELAB_TAILSCALE_KEY" ]; then
-        read -p "Enter Tailscale auth key (optional, press Enter to skip): " BLUELAB_TAILSCALE_KEY
+        if [[ -t 0 ]] && [[ "${BLUELAB_AUTO_INSTALL:-false}" != "true" ]]; then
+            read -p "Enter Tailscale auth key (optional, press Enter to skip): " BLUELAB_TAILSCALE_KEY
+        else
+            log_info "Non-interactive mode: skipping Tailscale setup"
+            BLUELAB_TAILSCALE_KEY=""
+        fi
     fi
     
     # TODO: Phase 2+ - ZFS Personal Cloud Drive Setup
@@ -417,7 +457,13 @@ setup_network_preference() {
     echo "and works even if your IP address changes!"
     echo ""
     
-    read -p "Choose option [1-4, default: 1]: " network_choice
+    # Use default option (1) if non-interactive
+    if [[ -t 0 ]] && [[ "${BLUELAB_AUTO_INSTALL:-false}" != "true" ]]; then
+        read -p "Choose option [1-4, default: 1]: " network_choice
+    else
+        log_info "Non-interactive mode: using recommended hostname-based access (option 1)"
+        network_choice="1"
+    fi
     network_choice=${network_choice:-1}
     
     case "$network_choice" in

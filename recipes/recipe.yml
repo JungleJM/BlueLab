@@ -31,3 +31,7 @@ modules:
       - htop
       - iotop
       - nethogs
+
+  - type: script
+    scripts:
+      - setup-bluelab-environment.sh

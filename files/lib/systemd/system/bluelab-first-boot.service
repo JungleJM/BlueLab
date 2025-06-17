@@ -23,6 +23,7 @@ User=root
 Group=root
 # Set up environment
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=BLUELAB_AUTO_INSTALL=true
 # Restart on failure
 Restart=on-failure
 RestartSec=30

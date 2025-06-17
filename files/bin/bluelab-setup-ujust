@@ -1,0 +1,44 @@
+#!/bin/bash
+# BlueLab ujust commands setup script
+# This runs during image build to ensure our just commands are imported
+
+set -euo pipefail
+
+echo "Setting up BlueLab ujust commands..."
+
+# Check if 60-bluelab.just exists
+if [[ ! -f "/usr/share/ublue-os/just/60-bluelab.just" ]]; then
+    echo "ERROR: 60-bluelab.just not found"
+    exit 1
+fi
+
+# Check if master justfile exists
+if [[ ! -f "/usr/share/ublue-os/justfile" ]]; then
+    echo "ERROR: Master justfile not found"
+    exit 1
+fi
+
+# Check if our import is already there
+if grep -q "60-bluelab.just" /usr/share/ublue-os/justfile; then
+    echo "BlueLab just commands already imported"
+    exit 0
+fi
+
+# Add our import after the last import line
+if grep -q "60-custom.just" /usr/share/ublue-os/justfile; then
+    # Insert after 60-custom.just
+    sed -i '/import.*60-custom\.just/a import "/usr/share/ublue-os/just/60-bluelab.just"' /usr/share/ublue-os/justfile
+else
+    # Add before the last import or at the end of imports
+    sed -i '/^import.*\.just"/a import "/usr/share/ublue-os/just/60-bluelab.just"' /usr/share/ublue-os/justfile
+fi
+
+echo "✅ BlueLab ujust commands imported successfully"
+
+# Verify the import
+if grep -q "60-bluelab.just" /usr/share/ublue-os/justfile; then
+    echo "✅ Import verified in master justfile"
+else
+    echo "❌ Import verification failed"
+    exit 1
+fi

@@ -92,6 +92,14 @@ fi
 EOF
 chmod +x /usr/bin/bluelab-verify
 
+# Set up ujust commands integration
+if [[ -f "/usr/bin/bluelab-setup-ujust" ]]; then
+    echo "Setting up BlueLab ujust commands..."
+    /usr/bin/bluelab-setup-ujust
+else
+    echo "⚠️  bluelab-setup-ujust script not found"
+fi
+
 echo "✅ BlueLab environment setup complete in image"
 echo "Image will contain:"
 echo "  - Templates in /usr/share/bluelab/"
