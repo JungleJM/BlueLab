@@ -35,6 +35,20 @@ trap cleanup EXIT
 
 log_info "Starting BlueLab first boot configuration"
 
+# Wait for system to fully settle after initial setup
+if [[ "${BLUELAB_AUTO_INSTALL:-false}" == "true" ]]; then
+    log_info "Running in auto-install mode, waiting for system to settle..."
+    sleep 30
+    
+    # Wait for initial setup services to complete
+    for service in gnome-initial-setup initial-setup; do
+        if systemctl is-active --quiet $service 2>/dev/null; then
+            log_info "Waiting for $service to complete..."
+            timeout 300 bash -c "while systemctl is-active --quiet $service; do sleep 5; done" || true
+        fi
+    done
+fi
+
 # Check if already completed
 if [ -f "$COMPLETION_MARKER" ]; then
     log_info "First boot already completed, exiting"
