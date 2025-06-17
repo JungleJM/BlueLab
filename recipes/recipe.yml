@@ -6,13 +6,13 @@ image-version: 41
 modules:
   - type: files
     files:
-      - source: bin
+      - source: ../files/bin
         destination: /usr/bin
-      - source: lib
+      - source: ../files/lib
         destination: /usr/lib  
-      - source: share
+      - source: ../files/share
         destination: /usr/share
-      - source: config
+      - source: ../files/config
         destination: /usr/share/bluelab
         
   - type: systemd
