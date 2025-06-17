@@ -331,7 +331,7 @@ What you're getting:
 • Professional credential management - Enterprise-grade security options
 
 This setup will take 5-10 minutes and will ask you a few simple questions.
-Everything can be reconfigured later using 'ujust bluelab-setup' commands.
+Everything can be reconfigured later using 'ujust bluelab-interactive-setup' command.
 
 Let's build your personal cloud infrastructure!
 EOF
@@ -1013,7 +1013,7 @@ main() {
     log_info "IMPORTANT: Please log out and back in to activate Docker group permissions"
     log_info ""
     log_info "🎮 UJUST COMMANDS:"
-    log_info "  • ujust bluelab-setup   - Reconfigure BlueLab system"
+    log_info "  • ujust bluelab-interactive-setup   - Reconfigure BlueLab system"
     log_info "  • ujust bluelab-status  - Show service status and URLs"
     log_info "  • ujust bluelab-logs    - View system logs"
     log_info "  • ujust bluelab-reset   - Reset configuration (advanced)"

@@ -12,6 +12,6 @@ What you're getting:
 • Professional credential management - Enterprise-grade security options
 
 This setup will take 5-10 minutes and will ask you a few simple questions.
-Everything can be reconfigured later using 'ujust bluelab-setup' commands.
+Everything can be reconfigured later using 'ujust bluelab-interactive-setup' command.
 
 Let's build your personal cloud infrastructure!

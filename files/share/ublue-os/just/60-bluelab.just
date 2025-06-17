@@ -1,10 +1,10 @@
 # BlueLab homelab automation system
 # https://github.com/your-username/bluelab
 
-# Set up or reconfigure BlueLab homelab system
-bluelab-setup:
+# Interactive setup/reconfiguration of BlueLab homelab system
+bluelab-interactive-setup:
     #!/usr/bin/env bash
-    echo "🔧 Starting BlueLab homelab setup..."
+    echo "🔧 Starting BlueLab interactive setup..."
     echo ""
     echo "This will configure your BlueLab homelab system with:"
     echo "  • Interactive credential management"
@@ -65,7 +65,7 @@ bluelab-status:
     else
         echo "⚠️  BlueLab setup: Not complete"
         echo ""
-        echo "Run 'ujust bluelab-setup' to configure your system"
+        echo "Run 'ujust bluelab-interactive-setup' to configure your system"
     fi
 
 # View BlueLab logs
