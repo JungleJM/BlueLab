@@ -1,18 +1,14 @@
 [Unit]
 Description=BlueLab First Boot Configuration
 Documentation=https://github.com/your-username/bluelab
-# Wait for system initial setup to complete first
-After=network-online.target docker.service graphical-session.target gnome-initial-setup.service initial-setup.service
-Wants=network-online.target
-Requires=docker.service
+# Start after basic system is ready, but don't require GUI services that might not exist
+After=network-online.target docker.service multi-user.target
+Wants=network-online.target docker.service
 # Only run if first boot hasn't completed
 ConditionPathExists=!/var/lib/bluelab/.first-boot-complete
 # Don't run in rescue mode or during installation
 ConditionKernelCommandLine=!rescue
 ConditionKernelCommandLine=!inst.stage2
-# Don't run if system initial setup is still pending
-ConditionPathExists=!/run/initial-setup
-ConditionPathExists=!/var/lib/gnome-initial-setup/state
 
 [Service]
 Type=oneshot
@@ -28,10 +24,14 @@ Group=root
 # Set up environment
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=BLUELAB_AUTO_INSTALL=true
+Environment=BLUELAB_USERNAME=bluelab
+Environment=BLUELAB_PASSWORD=bluelab123
+Environment=BLUELAB_HOSTNAME=bluelab
+Environment=BLUELAB_TIMEZONE=America/New_York
 # Restart on failure
 Restart=on-failure
 RestartSec=30
 StartLimitBurst=3
 
 [Install]
-WantedBy=graphical.target
+WantedBy=multi-user.target

@@ -34,6 +34,7 @@ cleanup() {
 trap cleanup EXIT
 
 log_info "Starting BlueLab first boot configuration"
+log_info "DEBUG: Environment - AUTO_INSTALL=${BLUELAB_AUTO_INSTALL:-false}, USERNAME=${BLUELAB_USERNAME:-unset}, TTY=$([[ -t 0 ]] && echo 'true' || echo 'false')"
 
 # Wait for system to fully settle after initial setup
 if [[ "${BLUELAB_AUTO_INSTALL:-false}" == "true" ]]; then
@@ -190,7 +191,7 @@ setup_system_credentials() {
         current_user=$(id -un 1000 2>/dev/null || echo "bluelab")
     fi
     
-    BLUELAB_USERNAME="$current_user"
+    BLUELAB_USERNAME="${BLUELAB_USERNAME:-$current_user}"
     
     echo "Username: $BLUELAB_USERNAME"
     
@@ -201,8 +202,8 @@ setup_system_credentials() {
         read -s -p "Enter your system password: " BLUELAB_PASSWORD
         echo
     else
-        # Generate a default password for non-interactive mode
-        BLUELAB_PASSWORD="bluelab123"
+        # Non-interactive mode needs a default password
+        BLUELAB_PASSWORD="${BLUELAB_PASSWORD:-bluelab123}"
         log_info "Non-interactive mode: using default password"
     fi
     
