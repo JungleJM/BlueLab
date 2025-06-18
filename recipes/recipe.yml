@@ -29,6 +29,7 @@ modules:
       - variety
       - policycoreutils
       - policycoreutils-python-utils
+      - policycoreutils-devel
 
   - type: script
     scripts:
