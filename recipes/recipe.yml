@@ -32,6 +32,7 @@ modules:
       - nethogs
       - variety
       - policycoreutils
+      - policycoreutils-python-utils
 
   - type: script
     scripts:
