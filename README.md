@@ -74,6 +74,9 @@ rpm-ostree rebase ostree-unverified-registry:ghcr.io/junglejm/bluelab
 # Step 3: Reboot and run setup
 sudo systemctl reboot
 ujust bluelab-setup
+
+# Step 4 (Optional): Install complete service stacks
+ujust download-bluelab-stacks
 ```
 
 ### That's It!

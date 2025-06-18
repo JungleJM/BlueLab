@@ -148,6 +148,81 @@ setup_hostname() {
     log_info "Hostname configured: bluelab.local"
 }
 
+# Setup WireGuard VPN
+setup_wireguard() {
+    local config_path="$1"
+    local username="$2"
+    log_info "Setting up WireGuard VPN"
+    
+    # Install WireGuard if not present
+    if ! command -v wg &>/dev/null; then
+        log_info "Installing WireGuard..."
+        if command -v ujust &>/dev/null; then
+            # Use Bluefin's package layering
+            sudo -u "$username" ujust install-layered-package wireguard-tools || {
+                log_warn "Failed to install WireGuard via ujust, trying rpm-ostree..."
+                rpm-ostree install wireguard-tools
+                log_info "WireGuard installed - system reboot may be required later"
+            }
+        else
+            rpm-ostree install wireguard-tools
+            log_info "WireGuard installed - system reboot may be required later"
+        fi
+    fi
+    
+    # Create WireGuard config directory
+    mkdir -p /etc/wireguard
+    
+    # Copy and secure the config file
+    local config_name="bluelab.conf"
+    cp "$config_path" "/etc/wireguard/$config_name"
+    chmod 600 "/etc/wireguard/$config_name"
+    chown root:root "/etc/wireguard/$config_name"
+    
+    # Enable and start WireGuard
+    systemctl enable "wg-quick@bluelab.service"
+    systemctl start "wg-quick@bluelab.service"
+    
+    if systemctl is-active --quiet "wg-quick@bluelab.service"; then
+        log_info "✅ WireGuard VPN configured and active"
+        
+        # Get WireGuard interface info
+        local wg_ip=$(wg show bluelab | grep -oP 'allowed ips: \K[^,]*' | head -1 2>/dev/null || echo "unknown")
+        log_info "WireGuard interface: bluelab (IP: $wg_ip)"
+    else
+        log_warn "⚠️  WireGuard service failed to start - check configuration"
+    fi
+}
+
+# Setup Tailscale mesh network
+setup_tailscale() {
+    local auth_key="$1"
+    local username="$2"
+    log_info "Setting up Tailscale mesh network"
+    
+    if command -v ujust &>/dev/null; then
+        # Enable Tailscale via Bluefin's ujust system
+        echo "yes" | sudo -u "$username" ujust toggle-tailscale
+        sleep 5
+        
+        # Configure Tailscale for service mesh (not exit node)
+        tailscale up \
+            --authkey="$auth_key" \
+            --hostname="bluelab" \
+            --accept-routes=true \
+            --advertise-exit-node=false \
+            --shields-up=false
+            
+        log_info "✅ Tailscale mesh network configured"
+        
+        # Get Tailscale IP
+        local ts_ip=$(tailscale ip -4 2>/dev/null || echo "pending")
+        log_info "Tailscale IP: $ts_ip"
+    else
+        log_warn "ujust not available - please configure Tailscale manually"
+    fi
+}
+
 # Main setup function
 main() {
     log_info "🏠 Starting BlueLab Setup"
@@ -163,11 +238,56 @@ main() {
     SYSTEM_USER=$(get_system_user)
     log_info "Detected system user: $SYSTEM_USER"
     
-    # Prompt for Tailscale (optional)
+    # Prompt for VPN configuration (optional)
     echo ""
-    echo "🌍 Tailscale Setup (Optional)"
-    echo "Tailscale allows secure remote access to your BlueLab from anywhere."
+    echo "🌍 VPN Configuration (Optional)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "BlueLab supports dual VPN configuration:"
+    echo "  🔒 WireGuard: Traditional VPN for general internet traffic"
+    echo "  🌐 Tailscale: Mesh network for secure service access"
+    echo ""
+    echo "You can configure one, both, or neither (all optional)."
+    echo ""
+    
+    # WireGuard Configuration
+    echo "1️⃣  WireGuard Setup"
+    echo "   Enter the path to your WireGuard .conf file:"
+    echo "   💡 Tip: You can drag & drop the file into this terminal to get the path"
+    echo ""
+    read -p "WireGuard config file path (or press Enter to skip): " WG_CONFIG_PATH
+    
+    # Validate WireGuard config
+    if [ -n "$WG_CONFIG_PATH" ]; then
+        # Expand tilde to home directory
+        WG_CONFIG_PATH="${WG_CONFIG_PATH/#\~/$HOME}"
+        
+        if [ -f "$WG_CONFIG_PATH" ]; then
+            echo "   ✅ Found WireGuard config: $(basename "$WG_CONFIG_PATH")"
+            WG_ENABLED=true
+        else
+            echo "   ❌ File not found: $WG_CONFIG_PATH"
+            echo "   WireGuard setup will be skipped."
+            WG_ENABLED=false
+        fi
+    else
+        WG_ENABLED=false
+        echo "   ⏭️  WireGuard setup skipped"
+    fi
+    
+    echo ""
+    echo "2️⃣  Tailscale Setup"
+    echo "   Tailscale provides secure mesh networking for accessing your services remotely."
+    echo ""
     read -p "Enter Tailscale auth key (or press Enter to skip): " TAILSCALE_KEY
+    
+    if [ -n "$TAILSCALE_KEY" ]; then
+        echo "   ✅ Tailscale auth key provided"
+        TAILSCALE_ENABLED=true
+    else
+        echo "   ⏭️  Tailscale setup skipped"
+        TAILSCALE_ENABLED=false
+    fi
     
     echo ""
     echo "🚀 Setting up BlueLab..."
@@ -178,17 +298,13 @@ main() {
     setup_docker_access "$SYSTEM_USER"
     deploy_monitoring_stack "$SYSTEM_USER"
     
-    # Setup Tailscale if key provided
-    if [ -n "$TAILSCALE_KEY" ]; then
-        log_info "Setting up Tailscale..."
-        if command -v ujust &>/dev/null; then
-            echo "yes" | ujust toggle-tailscale
-            sleep 5
-            tailscale up --authkey="$TAILSCALE_KEY" --hostname="bluelab" --accept-routes
-            log_info "Tailscale configured with hostname 'bluelab'"
-        else
-            log_warn "ujust not available - please configure Tailscale manually"
-        fi
+    # Setup VPN services
+    if [ "$WG_ENABLED" = true ]; then
+        setup_wireguard "$WG_CONFIG_PATH" "$SYSTEM_USER"
+    fi
+    
+    if [ "$TAILSCALE_ENABLED" = true ]; then
+        setup_tailscale "$TAILSCALE_KEY" "$SYSTEM_USER"
     fi
     
     echo ""
@@ -199,16 +315,30 @@ main() {
     echo "  • Homepage: http://bluelab.local:3000"
     echo "  • Dockge:   http://bluelab.local:5001"
     echo ""
-    if [ -n "$TAILSCALE_KEY" ]; then
-        echo "🌍 Remote Access (via Tailscale):"
-        echo "  • Homepage: http://bluelab:3000"
-        echo "  • Dockge:   http://bluelab:5001"
+    
+    # Show VPN access information
+    if [ "$WG_ENABLED" = true ] || [ "$TAILSCALE_ENABLED" = true ]; then
+        echo "🔐 VPN Access Configured:"
+        
+        if [ "$WG_ENABLED" = true ]; then
+            echo "  🔒 WireGuard: Traditional VPN active (interface: bluelab)"
+        fi
+        
+        if [ "$TAILSCALE_ENABLED" = true ]; then
+            echo "  🌐 Tailscale: Mesh network active"
+            echo "     • Homepage: http://bluelab:3000"
+            echo "     • Dockge:   http://bluelab:5001"
+        fi
         echo ""
     fi
     echo "📋 Useful Commands:"
     echo "  • ujust bluelab-status    - Check service status"
     echo "  • ujust bluelab-logs      - View logs"
     echo "  • ujust bluelab-reconfigure - Change settings"
+    echo ""
+    echo "🚀 Next Steps:"
+    echo "  • ujust download-bluelab-stacks - Install complete service stacks"
+    echo "  • ujust uninstall-bluelab-stacks - Remove all stacks (if needed)"
     echo ""
     echo "💡 Tip: Bookmark these URLs for easy access!"
 }
