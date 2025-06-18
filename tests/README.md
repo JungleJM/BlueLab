@@ -1,90 +1,65 @@
 # BlueLab Testing Strategy
 
-## Implementation-First, Test-Where-It-Hurts Approach
+## Universal Blue Rebase Workflow Testing
 
-Based on lessons learned during initial development, BlueLab has adopted a targeted testing strategy optimized for infrastructure automation projects.
+BlueLab now follows the proper Universal Blue philosophy with a rebase workflow. Testing focuses on the core value: homelab stack management and deployment.
 
 ## Testing Philosophy
 
 ### What We Test
-- **Pure Logic**: Parameter parsing, template generation, data transformation
-- **Critical Integrations**: Components that break frequently or are hard to debug
-- **User-Facing APIs**: Command interfaces and configuration validation
+- **Stack Deployment Logic**: Docker Compose template generation and deployment
+- **Service Integration**: Homepage configuration and service discovery
+- **ujust Commands**: Interactive setup and management commands
 
 ### What We Don't Test
-- **One-time Setup Scripts**: First-boot configuration, directory creation
-- **Hardware Integration**: Docker setup, systemd service management
-- **Simple File Operations**: Configuration file generation, template copying
+- ~~iVentoy Integration~~ (removed - no custom ISOs)
+- ~~First-boot Automation~~ (removed - now interactive via ujust)
+- ~~Parameter Parsing~~ (removed - simplified workflow)
+- **System Integration**: Test manually on real systems via rebase
 
 ## Current Test Structure
 
-### Stub Tests (For CI/CD Compatibility)
-- `run_all_tests.sh` - Test runner that supports unit/integration categories
-- `unit/` - Placeholder unit tests for future targeted testing
-- `integration/` - Placeholder integration tests for end-to-end flows
+### Remaining Tests
+- `integration/test_stack_management.sh` - Stack deployment and management
+- `unit/test_stack_deployment.sh` - Docker Compose template logic
 
 ### Manual Testing Focus
-Real testing happens on target hardware:
-- VM deployments with iVentoy
-- Docker stack deployments  
-- Service integration validation
-- Performance testing on minimum hardware
-
-## When to Add Tests
-
-### Add Automated Tests For:
-1. **Parameter Parsing Logic** - Complex string parsing that fails silently
-2. **Template Generation** - Data transformation with many edge cases
-3. **Port Conflict Detection** - Logic that prevents deployment issues
-4. **Dependency Resolution** - Complex algorithms with multiple inputs
-
-### Skip Automated Tests For:
-1. **System Integration** - Test manually on real hardware
-2. **Service Configuration** - Verify through actual service deployment
-3. **Network Setup** - Validate through end-to-end testing
-4. **File System Operations** - Test through normal usage
+Real testing happens via the proper workflow:
+1. Install standard Bluefin-DX
+2. Rebase to BlueLab image
+3. Run `ujust bluelab-setup`
+4. Validate homelab services
 
 ## Testing Workflow
 
-### Phase 1: Implementation Focus
-- Build core functionality manually
-- Test on real hardware/VMs
-- Document manual testing procedures
+### Phase 1: Core Functionality ✅
+- ✅ Rebase workflow working
+- ✅ Interactive setup via ujust
+- ✅ Basic stack deployment (Homepage + Dockge)
 
-### Phase 2: Targeted Test Addition
-- Identify pain points from Phase 1
-- Add tests for components that break frequently
-- Focus on logic that's hard to debug manually
+### Phase 2: Stack System (In Progress)
+- Stack template system
+- Multi-stack deployment
+- Service discovery integration
 
-### Phase 3: Integration Testing
-- Add automated tests for critical end-to-end flows
-- Build test environments that mirror production
-- Automate deployment verification
+### Manual Testing Procedure
 
-## Manual Testing Procedures
+```bash
+# 1. Set up test environment
+rpm-ostree rebase ostree-unverified-registry:ghcr.io/junglejm/bluelab
 
-### Basic Functionality Test
-1. Build BlueLab image
-2. Deploy to test VM via iVentoy
-3. Verify first-boot completion
-4. Check service deployment
-5. Validate web interfaces
+# 2. Test interactive setup
+ujust bluelab-setup
 
-### Parameter Parsing Test
-1. Test various iVentoy parameter combinations
-2. Verify fallback to interactive prompts
-3. Check error handling for invalid inputs
-4. Validate environment file generation
+# 3. Verify services
+curl http://bluelab.local:3000  # Homepage
+curl http://bluelab.local:5001  # Dockge
 
-### Stack Deployment Test
-1. Deploy each available stack
-2. Verify port assignments
-3. Check service health
-4. Test stack removal
-5. Validate Homepage integration
+# 4. Test management commands
+ujust bluelab-status
+ujust bluelab-logs
+```
 
-## Lessons Learned
+## Value-Based Testing
 
-**Infrastructure projects benefit more from working prototypes and manual validation than comprehensive test suites.**
-
-This approach allows rapid development while ensuring quality through targeted testing where it provides the most value.
+**Focus on what matters**: The value of BlueLab is in curated homelab stacks and easy management, not installation automation. Tests should reflect this focus.

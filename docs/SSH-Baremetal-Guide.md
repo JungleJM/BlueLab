@@ -7,24 +7,40 @@ sudo systemctl enable --now sshd; hostname -I
 
 ## Connect (from dev machine)
 ```bash
-ssh username@192.168.50.236
+ssh username@IP_ADDRESS
 ```
 
-## Debug BlueLab
+## Test BlueLab Rebase Workflow
 ```bash
-# Check first boot status
-ls /var/lib/bluelab/.first-boot-complete
+# Rebase to BlueLab
+rpm-ostree rebase ostree-unverified-registry:ghcr.io/junglejm/bluelab
+sudo systemctl reboot
+
+# After reboot, run setup
+ujust bluelab-setup
+
+# Check setup status
+ls /var/lib/bluelab/.setup-complete
 
 # View logs
-sudo tail /var/log/bluelab-first-boot.log
+sudo tail /var/log/bluelab-setup.log
 
 # Check containers
 docker ps
 
 # Test services
-curl localhost:3000
-curl localhost:5001
+curl http://bluelab.local:3000
+curl http://bluelab.local:5001
 ```
 
-## Test Machine IPs
-- **192.168.50.236** (primary test VM)
+## Useful Commands
+```bash
+# Check BlueLab status
+ujust bluelab-status
+
+# View all logs
+ujust bluelab-logs
+
+# Reconfigure if needed
+ujust bluelab-reconfigure
+```
