@@ -1,16 +1,20 @@
 # BlueLab homelab automation system
-# https://github.com/your-username/bluelab
+# https://github.com/JungleJM/BlueLab
 
-# Interactive setup/reconfiguration of BlueLab homelab system
-bluelab-interactive-setup:
+# Main BlueLab setup command - run this after rebasing to BlueLab image
+bluelab-setup:
     #!/usr/bin/env bash
-    echo "🔧 Starting BlueLab interactive setup..."
+    echo "🏠 Welcome to BlueLab Setup!"
     echo ""
     echo "This will configure your BlueLab homelab system with:"
-    echo "  • Interactive credential management"
-    echo "  • Service stack selection"
-    echo "  • Network configuration"
-    echo "  • Tailscale integration (optional)"
+    echo "  • Homepage Dashboard - Your mission control center"
+    echo "  • Dockge Container Manager - Professional Docker management"
+    echo "  • Hostname-based access (bluelab.local) - No more remembering IP addresses"
+    echo "  • Remote access via Tailscale - Secure access from anywhere"
+    echo "  • Professional credential management - Enterprise-grade security options"
+    echo ""
+    echo "This setup will take 5-10 minutes and will ask you a few simple questions."
+    echo "Everything can be reconfigured later using 'ujust bluelab-reconfigure' command."
     echo ""
     read -p "Continue with BlueLab setup? [Y/n]: " confirm
     if [[ "$confirm" =~ ^[Nn] ]]; then
@@ -18,7 +22,27 @@ bluelab-interactive-setup:
         exit 0
     fi
     echo ""
-    sudo /usr/bin/bluelab-first-boot
+    echo "Starting BlueLab configuration..."
+    sudo /usr/bin/bluelab-setup
+
+# Reconfigure BlueLab system settings
+bluelab-reconfigure:
+    #!/usr/bin/env bash
+    echo "🔧 BlueLab Reconfiguration"
+    echo ""
+    echo "This will allow you to change your BlueLab settings:"
+    echo "  • Update credentials"
+    echo "  • Add or remove service stacks"
+    echo "  • Change network configuration"
+    echo "  • Update Tailscale settings"
+    echo ""
+    read -p "Continue with reconfiguration? [Y/n]: " confirm
+    if [[ "$confirm" =~ ^[Nn] ]]; then
+        echo "Reconfiguration cancelled."
+        exit 0
+    fi
+    echo ""
+    sudo /usr/bin/bluelab-setup
 
 # Show BlueLab service status and access URLs
 bluelab-status:
@@ -27,8 +51,8 @@ bluelab-status:
     echo "======================="
     echo ""
     
-    # Check if first boot completed
-    if [ -f "/var/lib/bluelab/.first-boot-complete" ]; then
+    # Check if setup completed
+    if [ -f "/var/lib/bluelab/.setup-complete" ]; then
         echo "✅ BlueLab setup: Complete"
         
         # Show running services
@@ -65,7 +89,7 @@ bluelab-status:
     else
         echo "⚠️  BlueLab setup: Not complete"
         echo ""
-        echo "Run 'ujust bluelab-interactive-setup' to configure your system"
+        echo "Run 'ujust bluelab-setup' to configure your system"
     fi
 
 # View BlueLab logs
@@ -74,11 +98,11 @@ bluelab-logs:
     echo "📋 BlueLab System Logs"
     echo "====================="
     echo ""
-    echo "First boot log:"
-    if [ -f "/var/log/bluelab-first-boot.log" ]; then
-        tail -20 /var/log/bluelab-first-boot.log
+    echo "Setup log:"
+    if [ -f "/var/log/bluelab-setup.log" ]; then
+        tail -20 /var/log/bluelab-setup.log
     else
-        echo "   No first boot log found"
+        echo "   No setup log found"
     fi
     
     echo ""

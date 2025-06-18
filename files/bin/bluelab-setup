@@ -1,0 +1,217 @@
+#!/bin/bash
+set -euo pipefail
+
+# BlueLab Setup Script - Interactive Configuration
+# This script runs when user executes 'ujust bluelab-setup'
+
+SCRIPT_NAME="bluelab-setup"
+LOG_FILE="/var/log/bluelab-setup.log"
+CONFIG_DIR="/var/lib/bluelab"
+COMPLETION_MARKER="$CONFIG_DIR/.setup-complete"
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $*" | tee -a "$LOG_FILE"
+}
+
+log_info() { log "INFO" "$@"; }
+log_warn() { log "WARN" "$@"; }
+log_error() { log "ERROR" "$@"; }
+
+# Exit handler
+cleanup() {
+    local exit_code=$?
+    if [ $exit_code -eq 0 ]; then
+        log_info "BlueLab setup completed successfully"
+        touch "$COMPLETION_MARKER"
+    else
+        log_error "BlueLab setup failed with exit code $exit_code"
+    fi
+    exit $exit_code
+}
+trap cleanup EXIT
+
+# Create necessary directories
+setup_directories() {
+    log_info "Creating BlueLab directories"
+    mkdir -p "$CONFIG_DIR"/{config,stacks,data,backups}
+    mkdir -p /var/log/bluelab
+    chown -R 1000:1000 "$CONFIG_DIR"
+}
+
+# Get system username for Docker
+get_system_user() {
+    local current_user
+    current_user=$(who am i | awk '{print $1}' 2>/dev/null || echo "$SUDO_USER")
+    
+    if [ -z "$current_user" ]; then
+        current_user=$(id -un 1000 2>/dev/null || echo "user")
+    fi
+    
+    echo "$current_user"
+}
+
+# Setup Docker access for user
+setup_docker_access() {
+    local username="$1"
+    log_info "Setting up Docker access for user: $username"
+    
+    # Set up Docker groups using ujust dx-group (Bluefin-DX specific)
+    if command -v ujust &>/dev/null; then
+        sudo -u "$username" ujust dx-group || {
+            log_warn "ujust dx-group failed, user may need to manually run it later"
+        }
+        log_info "Docker groups configured - user may need to log out and back in"
+    else
+        log_warn "ujust command not found - Docker access may need manual configuration"
+    fi
+}
+
+# Deploy monitoring stack (Homepage + Dockge)
+deploy_monitoring_stack() {
+    local username="$1"
+    log_info "Deploying BlueLab monitoring stack"
+    
+    # Create monitoring stack directory
+    mkdir -p "$CONFIG_DIR/stacks/monitoring"
+    
+    # Create docker-compose.yml for monitoring stack
+    cat > "$CONFIG_DIR/stacks/monitoring/docker-compose.yml" << 'EOF'
+version: '3.8'
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: bluelab-homepage
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/lib/bluelab/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+
+  dockge:
+    image: louislam/dockge:1
+    container_name: bluelab-dockge
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dockge:/app/data
+      - /var/lib/bluelab/stacks:/var/lib/bluelab/stacks
+    environment:
+      - DOCKGE_STACKS_DIR=/var/lib/bluelab/stacks
+EOF
+
+    # Set proper ownership
+    chown -R 1000:1000 "$CONFIG_DIR/stacks"
+    
+    # Start the monitoring stack
+    log_info "Starting monitoring stack..."
+    cd "$CONFIG_DIR/stacks/monitoring"
+    sudo -u "$username" docker-compose up -d
+    
+    # Wait for containers to start
+    sleep 10
+    
+    # Verify containers are running
+    if sudo -u "$username" docker ps -q --filter "name=bluelab-homepage" | grep -q .; then
+        log_info "✅ Homepage container started successfully"
+    else
+        log_warn "⚠️  Homepage container may not have started properly"
+    fi
+    
+    if sudo -u "$username" docker ps -q --filter "name=bluelab-dockge" | grep -q .; then
+        log_info "✅ Dockge container started successfully"
+    else
+        log_warn "⚠️  Dockge container may not have started properly"
+    fi
+}
+
+# Setup hostname access
+setup_hostname() {
+    log_info "Setting up BlueLab hostname access"
+    
+    # Set system hostname to "bluelab"
+    hostnamectl set-hostname "bluelab"
+    
+    # Update /etc/hosts for local resolution
+    if ! grep -q "bluelab.local" /etc/hosts; then
+        echo "127.0.1.1 bluelab bluelab.local" >> /etc/hosts
+    fi
+    
+    log_info "Hostname configured: bluelab.local"
+}
+
+# Main setup function
+main() {
+    log_info "🏠 Starting BlueLab Setup"
+    
+    # Check if already completed
+    if [ -f "$COMPLETION_MARKER" ]; then
+        echo "BlueLab setup has already been completed!"
+        echo "Run 'ujust bluelab-reconfigure' to change settings."
+        exit 0
+    fi
+    
+    # Get system user
+    SYSTEM_USER=$(get_system_user)
+    log_info "Detected system user: $SYSTEM_USER"
+    
+    # Prompt for Tailscale (optional)
+    echo ""
+    echo "🌍 Tailscale Setup (Optional)"
+    echo "Tailscale allows secure remote access to your BlueLab from anywhere."
+    read -p "Enter Tailscale auth key (or press Enter to skip): " TAILSCALE_KEY
+    
+    echo ""
+    echo "🚀 Setting up BlueLab..."
+    
+    # Setup steps
+    setup_directories
+    setup_hostname
+    setup_docker_access "$SYSTEM_USER"
+    deploy_monitoring_stack "$SYSTEM_USER"
+    
+    # Setup Tailscale if key provided
+    if [ -n "$TAILSCALE_KEY" ]; then
+        log_info "Setting up Tailscale..."
+        if command -v ujust &>/dev/null; then
+            echo "yes" | ujust toggle-tailscale
+            sleep 5
+            tailscale up --authkey="$TAILSCALE_KEY" --hostname="bluelab" --accept-routes
+            log_info "Tailscale configured with hostname 'bluelab'"
+        else
+            log_warn "ujust not available - please configure Tailscale manually"
+        fi
+    fi
+    
+    echo ""
+    echo "🎉 BlueLab Setup Complete!"
+    echo "================================"
+    echo ""
+    echo "🌐 Access Your Services:"
+    echo "  • Homepage: http://bluelab.local:3000"
+    echo "  • Dockge:   http://bluelab.local:5001"
+    echo ""
+    if [ -n "$TAILSCALE_KEY" ]; then
+        echo "🌍 Remote Access (via Tailscale):"
+        echo "  • Homepage: http://bluelab:3000"
+        echo "  • Dockge:   http://bluelab:5001"
+        echo ""
+    fi
+    echo "📋 Useful Commands:"
+    echo "  • ujust bluelab-status    - Check service status"
+    echo "  • ujust bluelab-logs      - View logs"
+    echo "  • ujust bluelab-reconfigure - Change settings"
+    echo ""
+    echo "💡 Tip: Bookmark these URLs for easy access!"
+}
+
+# Execute main function
+main "$@"

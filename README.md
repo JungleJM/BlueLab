@@ -1,7 +1,7 @@
 # BlueLab - Your Personal Cloud at Home
 
-> **⚠️ PROJECT STATUS: Phase 1 On Hold (95% Complete)**  
-> BlueLab Phase 1 is currently **on hold** due to installer timing issues during the BlueBuild/BlueFin ecosystem transition. Active development has shifted to **Phase 2** in the [BlueLab Stacks repository](https://github.com/JungleJM/BlueLab-Stacks) while we wait for upstream installer stabilization.
+> **🎉 PROJECT STATUS: Phase 1 Complete!**  
+> BlueLab Phase 1 is **100% complete** and follows proper Universal Blue philosophy! No custom ISOs needed - just rebase and setup. Active development continues with **Phase 2** in the [BlueLab Stacks repository](https://github.com/JungleJM/BlueLab-Stacks).
 
 ## What is BlueLab?
 
@@ -59,6 +59,28 @@ Your services organized like apps on your phone's home screen, showing status an
 - **Book Library**: Digital library for ebooks and audiobooks
 - **Advanced Monitoring**: Detailed system analytics and alerting
 
+## 🚀 Quick Installation
+
+### Prerequisites
+- Any computer from the last 5 years with 8GB+ RAM and 500GB+ storage
+- No Linux experience required!
+
+### 3-Step Installation
+```bash
+# Step 1: Install standard Bluefin-DX (download from projectbluefin.io)
+# Step 2: Rebase to BlueLab image
+rpm-ostree rebase ostree-unverified-registry:ghcr.io/junglejm/bluelab
+
+# Step 3: Reboot and run setup
+sudo systemctl reboot
+ujust bluelab-setup
+```
+
+### That's It!
+- **Homepage**: http://bluelab.local:3000
+- **Container Management**: http://bluelab.local:5001
+- **Total Time**: ~30 minutes
+
 ## 🛠 Getting Started
 
 ### What You Need
@@ -73,10 +95,10 @@ Your services organized like apps on your phone's home screen, showing status an
 - No networking expertise
 - Simple web interfaces for everything
 
-### Setup Process (3 Hours Total)
-1. **Prep** (15 min): Download BlueLab, create USB drive
-2. **Install** (30 min active): Boot USB, fill web form, let it work
-3. **First Access** (15 min): Open dashboard, start using services
+### Detailed Setup Process
+1. **Install Bluefin-DX** (15 min): Download and install from [projectbluefin.io](https://projectbluefin.io)
+2. **Rebase to BlueLab** (5 min): Run the rebase command above
+3. **Run Setup** (10 min): Interactive configuration via `ujust bluelab-setup`
 4. **Ongoing**: System maintains itself automatically
 
 ## 🔒 Security & Access
@@ -96,12 +118,12 @@ Creates a private, encrypted tunnel between your devices and BlueLab:
 
 ## 📊 Development Status
 
-### Phase 1: Core Foundation (95% Complete)
-- ✅ **BlueBuild Recipe**: Successfully building ISOs
-- ✅ **First-Boot System**: Complete automation scripts
+### Phase 1: Core Foundation (100% Complete!)
+- ✅ **BlueBuild Recipe**: Successfully building container images
+- ✅ **Interactive Setup**: Clean `ujust bluelab-setup` command
 - ✅ **Service Templates**: All Docker stack configurations  
-- ✅ **CI/CD Pipeline**: Automated ISO generation
-- ⚠️ **Installer Timing**: Working through conflicts with system setup
+- ✅ **CI/CD Pipeline**: Automated container image builds
+- ✅ **Proper Workflow**: Follows Universal Blue philosophy
 
 ### Current Work: Phase 2 (Active Development)
 **Primary Repository**: [BlueLab Stacks](https://github.com/JungleJM/BlueLab-Stacks)
