@@ -1,6 +1,40 @@
 # BlueLab homelab automation system
 # https://github.com/JungleJM/BlueLab
 
+# Check for ujust command updates
+_check_ujust_updates:
+    #!/usr/bin/env bash
+    # Internal function to check for ujust command updates
+    UPDATE_MARKER="/var/lib/bluelab/.ujust-update-check"
+    UPDATE_INTERVAL=21600  # 6 hours for ujust commands (more frequent than setup script)
+    
+    # Skip if checked recently
+    if [ -f "$UPDATE_MARKER" ]; then
+        LAST_CHECK=$(stat -c %Y "$UPDATE_MARKER" 2>/dev/null || echo 0)
+        NOW=$(date +%s)
+        TIME_DIFF=$((NOW - LAST_CHECK))
+        
+        if [ $TIME_DIFF -lt $UPDATE_INTERVAL ]; then
+            return 0  # Skip update check
+        fi
+    fi
+    
+    # Quick update check
+    TEMP_FILE=$(mktemp)
+    if curl -sSfL "https://raw.githubusercontent.com/JungleJM/BlueLab/main/files/share/ublue-os/just/60-bluelab.just" -o "$TEMP_FILE" 2>/dev/null; then
+        CURRENT_FILE="/usr/share/ublue-os/just/60-bluelab.just"
+        
+        if [ -f "$CURRENT_FILE" ] && ! cmp -s "$TEMP_FILE" "$CURRENT_FILE"; then
+            echo ""
+            echo "💡 BlueLab Command Update Available!"
+            echo "   Run 'ujust bluelab-update' to get the latest commands and fixes."
+            echo ""
+        fi
+        
+        touch "$UPDATE_MARKER"
+    fi
+    rm -f "$TEMP_FILE"
+
 # Main BlueLab setup command - run this after rebasing to BlueLab image
 bluelab-setup:
     #!/usr/bin/env bash
@@ -11,7 +45,8 @@ bluelab-setup:
     echo "  • Dockge Container Manager - Professional Docker management"
     echo "  • Hostname-based access (bluelab.local) - No more remembering IP addresses"
     echo "  • Remote access via Tailscale - Secure access from anywhere"
-    echo "  • Professional credential management - Enterprise-grade security options"
+    echo "  • Desktop customization - Variety wallpapers & dock configuration"
+    echo "  • Auto-updating setup scripts from GitHub"
     echo ""
     echo "This setup will take 5-10 minutes and will ask you a few simple questions."
     echo "Everything can be reconfigured later using 'ujust bluelab-reconfigure' command."
@@ -47,6 +82,9 @@ bluelab-reconfigure:
 # Show BlueLab service status and access URLs
 bluelab-status:
     #!/usr/bin/env bash
+    # Check for ujust command updates before running
+    just _check_ujust_updates
+    
     echo "🔍 BlueLab System Status"
     echo "======================="
     echo ""
@@ -116,6 +154,134 @@ bluelab-logs:
         fi
     done
 
+# Check what updates are available
+bluelab-check-updates:
+    #!/usr/bin/env bash
+    echo "🔍 BlueLab Update Check"
+    echo "======================="
+    echo ""
+    
+    # Check setup script
+    echo "📋 Checking setup script..."
+    TEMP_SETUP=$(mktemp)
+    if curl -sSfL "https://raw.githubusercontent.com/JungleJM/BlueLab/main/files/bin/bluelab-setup" -o "$TEMP_SETUP" 2>/dev/null; then
+        if ! cmp -s "$TEMP_SETUP" "/usr/bin/bluelab-setup"; then
+            echo "  🔄 Setup script update available"
+        else
+            echo "  ✅ Setup script is current"
+        fi
+    else
+        echo "  ❌ Cannot check setup script (network issue)"
+    fi
+    rm -f "$TEMP_SETUP"
+    
+    # Check ujust commands
+    echo "📋 Checking ujust commands..."
+    TEMP_UJUST=$(mktemp)
+    if curl -sSfL "https://raw.githubusercontent.com/JungleJM/BlueLab/main/files/share/ublue-os/just/60-bluelab.just" -o "$TEMP_UJUST" 2>/dev/null; then
+        if ! cmp -s "$TEMP_UJUST" "/usr/share/ublue-os/just/60-bluelab.just"; then
+            echo "  🔄 ujust commands update available"
+        else
+            echo "  ✅ ujust commands are current"
+        fi
+    else
+        echo "  ❌ Cannot check ujust commands (network issue)"
+    fi
+    rm -f "$TEMP_UJUST"
+    
+    # Check variety config
+    echo "📋 Checking configuration files..."
+    TEMP_VARIETY=$(mktemp)
+    if curl -sSfL "https://raw.githubusercontent.com/JungleJM/BlueLab/main/files/config/variety.conf" -o "$TEMP_VARIETY" 2>/dev/null; then
+        if [ ! -f "/usr/share/bluelab/variety.conf" ] || ! cmp -s "$TEMP_VARIETY" "/usr/share/bluelab/variety.conf"; then
+            echo "  🔄 Variety configuration update available"
+        else
+            echo "  ✅ Variety configuration is current"
+        fi
+    else
+        echo "  ❌ Cannot check variety config (network issue)"
+    fi
+    rm -f "$TEMP_VARIETY"
+    
+    echo ""
+    echo "💡 Run 'ujust bluelab-update' to install available updates"
+
+# Force update BlueLab setup scripts from GitHub
+bluelab-update:
+    #!/usr/bin/env bash
+    echo "🔄 BlueLab Script Update"
+    echo "========================"
+    echo ""
+    echo "This will force-update BlueLab setup scripts from GitHub:"
+    echo "  • Latest setup script with new features"
+    echo "  • Updated configuration templates"
+    echo "  • New ujust commands and bug fixes"
+    echo ""
+    echo "⚠️  Current scripts will be backed up first."
+    echo ""
+    read -p "Force update BlueLab scripts? [Y/n]: " confirm
+    if [[ "$confirm" =~ ^[Nn] ]]; then
+        echo "Update cancelled."
+        exit 0
+    fi
+    echo ""
+    
+    # Remove update check markers to force update
+    sudo rm -f /var/lib/bluelab/.script-update-check
+    sudo rm -f /var/lib/bluelab/.ujust-update-check
+    
+    echo "🔄 Forcing script update check..."
+    sudo /usr/bin/bluelab-setup --update-only 2>/dev/null || {
+        echo "⚠️  Direct update failed, trying manual download..."
+        
+        # Manual update fallback
+        TEMP_DIR=$(mktemp -d)
+        echo "📥 Downloading latest setup script..."
+        
+        if curl -sSfL "https://raw.githubusercontent.com/JungleJM/BlueLab/main/files/bin/bluelab-setup" -o "$TEMP_DIR/bluelab-setup"; then
+            # Backup current script
+            BACKUP_FILE="/usr/bin/bluelab-setup.backup.$(date +%Y%m%d-%H%M%S)"
+            sudo cp /usr/bin/bluelab-setup "$BACKUP_FILE"
+            echo "✅ Current script backed up to: $BACKUP_FILE"
+            
+            # Install new script
+            sudo cp "$TEMP_DIR/bluelab-setup" /usr/bin/bluelab-setup
+            sudo chmod +x /usr/bin/bluelab-setup
+            
+            # Update configs
+            echo "📥 Downloading configuration files..."
+            mkdir -p "$TEMP_DIR/configs"
+            
+            # Download Variety config
+            if curl -sSfL "https://raw.githubusercontent.com/JungleJM/BlueLab/main/files/config/variety.conf" -o "$TEMP_DIR/configs/variety.conf"; then
+                sudo mkdir -p /usr/share/bluelab
+                sudo cp "$TEMP_DIR/configs/variety.conf" /usr/share/bluelab/variety.conf
+                echo "✅ Variety configuration updated"
+            fi
+            
+            # Download ujust commands
+            if curl -sSfL "https://raw.githubusercontent.com/JungleJM/BlueLab/main/files/share/ublue-os/just/60-bluelab.just" -o "$TEMP_DIR/configs/60-bluelab.just"; then
+                sudo mkdir -p /usr/share/ublue-os/just
+                sudo cp "$TEMP_DIR/configs/60-bluelab.just" /usr/share/ublue-os/just/60-bluelab.just
+                echo "✅ ujust commands updated"
+                
+                # Reload just commands
+                if command -v just &>/dev/null; then
+                    just --list > /dev/null 2>&1 || true
+                    echo "✅ ujust commands reloaded - new commands available immediately"
+                fi
+            fi
+            
+            echo ""
+            echo "✅ BlueLab scripts updated successfully!"
+            echo "💡 Changes will take effect immediately"
+        else
+            echo "❌ Failed to download updates - check internet connection"
+        fi
+        
+        rm -rf "$TEMP_DIR"
+    }
+
 # Reset BlueLab configuration (advanced)
 bluelab-reset:
     #!/usr/bin/env bash
@@ -155,6 +321,9 @@ bluelab-reset:
 # Download and install BlueLab-Stacks
 download-bluelab-stacks:
     #!/usr/bin/env bash
+    # Check for ujust command updates before running
+    just _check_ujust_updates
+    
     echo "📦 BlueLab-Stacks Installation"
     echo "=============================="
     echo ""
@@ -279,6 +448,9 @@ download-bluelab-stacks:
 # Uninstall BlueLab-Stacks (preserves pre-existing services)
 uninstall-bluelab-stacks:
     #!/usr/bin/env bash
+    # Check for ujust command updates before running
+    just _check_ujust_updates
+    
     echo "🗑️  BlueLab-Stacks Uninstallation"
     echo "================================="
     echo ""

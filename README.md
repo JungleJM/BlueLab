@@ -80,6 +80,13 @@ ujust bluelab-setup
 ujust download-bluelab-stacks
 ```
 
+### 🔄 Always Up-to-Date
+BlueLab automatically checks for script updates and notifies you when improvements are available:
+```bash
+ujust bluelab-check-updates  # Check what updates are available
+ujust bluelab-update         # Install latest scripts and fixes
+```
+
 ### That's It!
 - **Homepage**: http://bluelab.local:3000
 - **Container Management**: http://bluelab.local:5001

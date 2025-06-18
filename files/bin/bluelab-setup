@@ -9,6 +9,11 @@ LOG_FILE="/var/log/bluelab-setup.log"
 CONFIG_DIR="/var/lib/bluelab"
 COMPLETION_MARKER="$CONFIG_DIR/.setup-complete"
 
+# Self-update configuration
+BLUELAB_REPO_URL="https://raw.githubusercontent.com/JungleJM/BlueLab/main"
+SCRIPT_UPDATE_MARKER="$CONFIG_DIR/.script-update-check"
+UPDATE_CHECK_INTERVAL=86400  # 24 hours in seconds
+
 # Logging function
 log() {
     local level="$1"
@@ -19,6 +24,119 @@ log() {
 log_info() { log "INFO" "$@"; }
 log_warn() { log "WARN" "$@"; }
 log_error() { log "ERROR" "$@"; }
+
+# Self-update functionality
+check_for_script_updates() {
+    log_info "Checking for BlueLab setup script updates..."
+    
+    # Skip update check if done recently
+    if [ -f "$SCRIPT_UPDATE_MARKER" ]; then
+        local last_check=$(stat -c %Y "$SCRIPT_UPDATE_MARKER" 2>/dev/null || echo 0)
+        local now=$(date +%s)
+        local time_diff=$((now - last_check))
+        
+        if [ $time_diff -lt $UPDATE_CHECK_INTERVAL ]; then
+            log_info "Update check skipped (checked recently)"
+            return 0
+        fi
+    fi
+    
+    # Create temp directory for update check
+    local temp_dir=$(mktemp -d)
+    local remote_script="$temp_dir/bluelab-setup"
+    local current_script="/usr/bin/bluelab-setup"
+    
+    # Download latest script
+    if curl -sSfL "$BLUELAB_REPO_URL/files/bin/bluelab-setup" -o "$remote_script" 2>/dev/null; then
+        chmod +x "$remote_script"
+        
+        # Compare scripts (exclude timestamp-based differences)
+        local current_hash=$(grep -v "$(date '+%Y-%m-%d')" "$current_script" 2>/dev/null | sha256sum | cut -d' ' -f1)
+        local remote_hash=$(grep -v "$(date '+%Y-%m-%d')" "$remote_script" 2>/dev/null | sha256sum | cut -d' ' -f1)
+        
+        if [ "$current_hash" != "$remote_hash" ]; then
+            echo ""
+            echo "🔄 BlueLab Setup Script Update Available!"
+            echo "========================================"
+            echo ""
+            echo "A newer version of the BlueLab setup script is available."
+            echo "This update may include:"
+            echo "  • New features and improvements"
+            echo "  • Bug fixes and stability enhancements"
+            echo "  • Updated configuration options"
+            echo ""
+            echo "⚠️  The script will backup your current version first."
+            echo ""
+            read -p "Update to the latest setup script? [Y/n]: " update_confirm
+            
+            if [[ ! "$update_confirm" =~ ^[Nn] ]]; then
+                # Backup current script
+                local backup_script="/usr/bin/bluelab-setup.backup.$(date +%Y%m%d-%H%M%S)"
+                cp "$current_script" "$backup_script"
+                log_info "Current script backed up to: $backup_script"
+                
+                # Update script
+                cp "$remote_script" "$current_script"
+                chmod +x "$current_script"
+                
+                # Update configs if available
+                update_config_files "$temp_dir"
+                
+                echo ""
+                echo "✅ BlueLab setup script updated successfully!"
+                echo ""
+                echo "🔄 Restarting with updated script..."
+                touch "$SCRIPT_UPDATE_MARKER"
+                
+                # Cleanup and restart with new script
+                rm -rf "$temp_dir"
+                exec "$current_script" "$@"
+            else
+                echo "Update skipped."
+            fi
+        else
+            log_info "Setup script is up to date"
+        fi
+        
+        # Mark update check as completed
+        touch "$SCRIPT_UPDATE_MARKER"
+    else
+        log_warn "Could not check for script updates (network issue?)"
+    fi
+    
+    # Cleanup
+    rm -rf "$temp_dir"
+}
+
+# Update configuration files
+update_config_files() {
+    local temp_dir="$1"
+    log_info "Checking for configuration file updates..."
+    
+    # Update Variety config if available
+    if curl -sSfL "$BLUELAB_REPO_URL/files/config/variety.conf" -o "$temp_dir/variety.conf" 2>/dev/null; then
+        if [ ! -f "/usr/share/bluelab/variety.conf" ] || ! cmp -s "$temp_dir/variety.conf" "/usr/share/bluelab/variety.conf"; then
+            mkdir -p /usr/share/bluelab
+            cp "$temp_dir/variety.conf" "/usr/share/bluelab/variety.conf"
+            log_info "✅ Variety configuration updated"
+        fi
+    fi
+    
+    # Update ujust commands if available
+    if curl -sSfL "$BLUELAB_REPO_URL/files/share/ublue-os/just/60-bluelab.just" -o "$temp_dir/60-bluelab.just" 2>/dev/null; then
+        if [ ! -f "/usr/share/ublue-os/just/60-bluelab.just" ] || ! cmp -s "$temp_dir/60-bluelab.just" "/usr/share/ublue-os/just/60-bluelab.just"; then
+            mkdir -p /usr/share/ublue-os/just
+            cp "$temp_dir/60-bluelab.just" "/usr/share/ublue-os/just/60-bluelab.just"
+            log_info "✅ ujust commands updated"
+            
+            # Reload just commands to make new commands available immediately
+            if command -v just &>/dev/null; then
+                just --list > /dev/null 2>&1 || true
+                log_info "✅ ujust commands reloaded"
+            fi
+        fi
+    fi
+}
 
 # Exit handler
 cleanup() {
@@ -327,6 +445,9 @@ setup_gnome_dock() {
 # Main setup function
 main() {
     log_info "🏠 Starting BlueLab Setup"
+    
+    # Check for script updates first
+    check_for_script_updates "$@"
     
     # Check if already completed
     if [ -f "$COMPLETION_MARKER" ]; then
