@@ -1,15 +1,32 @@
 name: Build BlueLab Image
+# 
+# ⚠️  RESOURCE CONSERVATION MODE ⚠️
+# Automatic builds are DISABLED to conserve GitHub Actions resources.
+# 
+# BlueLab has transitioned to a simple rebase workflow:
+# 1. Users install Bluefin-DX
+# 2. Users rebase to BlueLab image
+# 3. Users run `ujust bluelab-setup` + `ujust download-bluelab-stacks`
+# 
+# No custom ISO generation needed - saves significant build resources!
+# Manual builds available for development/testing only.
 
 on:
-  schedule:
-    # Build daily at 6 AM UTC to pick up base image updates
-    - cron: '0 6 * * *'
-  push:
-    branches: [ main, develop, first-boot ]
-  pull_request:
-    branches: [ main ]
+  # Automatic builds disabled to conserve resources
+  # BlueLab now uses simple rebase workflow - no custom builds needed
+  # schedule:
+  #   - cron: '0 6 * * *'
+  # push:
+  #   branches: [ main, develop, first-boot ]
+  # pull_request:
+  #   branches: [ main ]
   workflow_dispatch:
-    # Allow manual triggering
+    # Manual triggering only - for development/testing purposes
+    inputs:
+      reason:
+        description: 'Reason for manual build'
+        required: false
+        default: 'Development testing'
 
 env:
   REGISTRY: ghcr.io
@@ -61,7 +78,7 @@ jobs:
   verify:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'workflow_dispatch'
     
     steps:
       - name: Checkout repository
@@ -71,9 +88,14 @@ jobs:
         run: |
           echo "✅ BlueBuild recipe successfully processed"
           echo "✅ Container image built and pushed to registry"
-          echo "✅ Build verification complete"
+          echo "✅ Manual build verification complete"
           echo ""
-          echo "🚀 Installation Instructions:"
-          echo "1. Install standard Bluefin-DX"
+          echo "🚀 BlueLab Installation Instructions:"
+          echo "1. Install standard Bluefin-DX from projectbluefin.io"
           echo "2. Rebase: rpm-ostree rebase ostree-unverified-registry:ghcr.io/junglejm/bluelab"
-          echo "3. Setup: ujust bluelab-setup"
+          echo "3. Reboot: sudo systemctl reboot"
+          echo "4. Setup: ujust bluelab-setup"
+          echo "5. Install stacks: ujust download-bluelab-stacks"
+          echo ""
+          echo "⚠️  Note: Automatic builds disabled to conserve GitHub Actions resources"
+          echo "🎯 Reason for manual build: ${{ github.event.inputs.reason }}"

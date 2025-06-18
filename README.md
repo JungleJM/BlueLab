@@ -31,6 +31,7 @@ Instead of spending weeks learning commands and configurations:
 - **Self-healing** - resets if anything breaks
 - **Gaming optimized** with Steam and performance tweaks
 - **Beginner friendly** but powerful
+- **Beautiful wallpapers** - Bing Photo of the Day changes daily
 
 ### Beautiful Dashboard
 Your services organized like apps on your phone's home screen, showing status and providing easy access to everything.
@@ -122,10 +123,10 @@ Creates a private, encrypted tunnel between your devices and BlueLab:
 ## 📊 Development Status
 
 ### Phase 1: Core Foundation (100% Complete!)
-- ✅ **BlueBuild Recipe**: Successfully building container images
+- ✅ **BlueBuild Recipe**: Container image recipe ready
 - ✅ **Interactive Setup**: Clean `ujust bluelab-setup` command
-- ✅ **Service Templates**: All Docker stack configurations  
-- ✅ **CI/CD Pipeline**: Automated container image builds
+- ✅ **Service Integration**: BlueLab-Stacks repository integration
+- ✅ **Resource Efficiency**: Automatic builds disabled to conserve resources
 - ✅ **Proper Workflow**: Follows Universal Blue philosophy
 
 ### Current Work: Phase 2 (Active Development)
@@ -172,10 +173,14 @@ BlueLab/
 
 ## 🚧 Known Limitations
 
-- **Development Status**: Not ready for production use
-- **Installer Issues**: Timing conflicts during system initial setup
-- **Testing Required**: Core functionality needs VM validation
+- **Manual Builds Only**: Automatic container builds disabled to conserve resources
+- **External Dependency**: Relies on BlueLab-Stacks repository for complete functionality
+- **Testing Required**: Core functionality needs real hardware validation
 - **Documentation**: Some areas still being completed
+
+## 🌍 Resource Conservation
+
+BlueLab has disabled automatic container builds to conserve GitHub Actions resources. The project now uses an efficient rebase workflow that doesn't require custom ISO generation. This allows valuable build resources to be allocated to other open-source projects while maintaining full functionality through the simple rebase approach.
 
 ## 🎯 User Testimonials (Projected)
 

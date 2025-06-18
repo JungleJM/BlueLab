@@ -30,6 +30,7 @@ modules:
       - htop
       - iotop
       - nethogs
+      - variety
 
   - type: script
     scripts:

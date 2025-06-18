@@ -223,6 +223,107 @@ setup_tailscale() {
     fi
 }
 
+# Setup Variety wallpaper manager
+setup_variety() {
+    local username="$1"
+    log_info "Setting up Variety wallpaper manager"
+    
+    # Create Variety config directory for user
+    local user_home=$(getent passwd "$username" | cut -d: -f6)
+    local variety_config_dir="$user_home/.config/variety"
+    
+    sudo -u "$username" mkdir -p "$variety_config_dir"
+    sudo -u "$username" mkdir -p "$variety_config_dir/Downloaded"
+    sudo -u "$username" mkdir -p "$variety_config_dir/Favorites"
+    sudo -u "$username" mkdir -p "$variety_config_dir/Fetched"
+    
+    # Copy BlueLab Variety configuration
+    if [ -f "/usr/share/bluelab/variety.conf" ]; then
+        sudo -u "$username" cp "/usr/share/bluelab/variety.conf" "$variety_config_dir/variety.conf"
+        log_info "✅ Variety configured for Bing Photo of the Day (daily changes)"
+    else
+        log_warn "Variety config template not found, using defaults"
+    fi
+    
+    # Enable Variety autostart for user
+    local autostart_dir="$user_home/.config/autostart"
+    sudo -u "$username" mkdir -p "$autostart_dir"
+    
+    # Create autostart desktop file
+    sudo -u "$username" tee "$autostart_dir/variety.desktop" > /dev/null << 'EOF'
+[Desktop Entry]
+Name=Variety
+Comment=Wallpaper changer, downloader and manager
+Icon=variety
+Exec=variety
+Terminal=false
+Type=Application
+Categories=Graphics;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+EOF
+    
+    # Start Variety immediately if running in a desktop session
+    if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+        log_info "Starting Variety wallpaper manager..."
+        sudo -u "$username" nohup variety > /dev/null 2>&1 &
+        sleep 2
+        log_info "✅ Variety started and will change wallpaper daily"
+    else
+        log_info "✅ Variety configured to start automatically on login"
+    fi
+}
+
+# Setup GNOME dock configuration
+setup_gnome_dock() {
+    local username="$1"
+    log_info "Configuring GNOME dock applications"
+    
+    # Wait for user session to be available
+    sleep 2
+    
+    # Get current favorite apps and modify them
+    sudo -u "$username" bash -c '
+        export DISPLAY=${DISPLAY:-:0}
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+        
+        # Get current favorites
+        current_favorites=$(gsettings get org.gnome.shell favorite-apps 2>/dev/null || echo "[]")
+        
+        # Convert to a format we can work with and remove VS Code variants
+        new_favorites=$(echo "$current_favorites" | sed "s/\[//g" | sed "s/\]//g" | sed "s/, /,/g" | tr "," "\n" | grep -v "code" | grep -v "vscode" | grep -v "visual-studio-code")
+        
+        # Add terminal if not already present
+        if ! echo "$new_favorites" | grep -q "org.gnome.Terminal.desktop"; then
+            if ! echo "$new_favorites" | grep -q "org.gnome.Console.desktop"; then
+                # Add terminal (prefer Console, fallback to Terminal)
+                if [ -f "/usr/share/applications/org.gnome.Console.desktop" ]; then
+                    new_favorites="$new_favorites"$'\n'"'\''org.gnome.Console.desktop'\''"
+                else
+                    new_favorites="$new_favorites"$'\n'"'\''org.gnome.Terminal.desktop'\''"
+                fi
+            fi
+        fi
+        
+        # Clean up empty lines and rebuild array format
+        clean_favorites=$(echo "$new_favorites" | grep -v "^$" | paste -sd "," - | sed "s/^/[/" | sed "s/$/]/")
+        
+        # Apply the new favorites
+        if [ -n "$clean_favorites" ] && [ "$clean_favorites" != "[]" ]; then
+            gsettings set org.gnome.shell favorite-apps "$clean_favorites"
+            echo "✅ Dock updated: Removed VS Code, added Terminal"
+        else
+            # Fallback to a sensible default if something went wrong
+            gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'firefox.desktop', 'org.gnome.Console.desktop', 'org.gnome.Settings.desktop']"
+            echo "✅ Dock set to default applications with Terminal"
+        fi
+    ' 2>/dev/null || {
+        log_warn "Could not configure GNOME dock - may need manual setup after login"
+    }
+    
+    log_info "✅ GNOME dock configured for BlueLab"
+}
+
 # Main setup function
 main() {
     log_info "🏠 Starting BlueLab Setup"
@@ -297,6 +398,8 @@ main() {
     setup_hostname
     setup_docker_access "$SYSTEM_USER"
     deploy_monitoring_stack "$SYSTEM_USER"
+    setup_variety "$SYSTEM_USER"
+    setup_gnome_dock "$SYSTEM_USER"
     
     # Setup VPN services
     if [ "$WG_ENABLED" = true ]; then
@@ -314,6 +417,11 @@ main() {
     echo "🌐 Access Your Services:"
     echo "  • Homepage: http://bluelab.local:3000"
     echo "  • Dockge:   http://bluelab.local:5001"
+    echo ""
+    echo "🖼️  Desktop Features:"
+    echo "  • Variety: Bing Photo of the Day (changes daily)"
+    echo "  • Auto-starts on login for fresh wallpapers"
+    echo "  • Dock: Customized with Terminal, VS Code removed"
     echo ""
     
     # Show VPN access information
