@@ -1,7 +1,7 @@
 # BlueLab - Your Personal Cloud at Home
 
-> **⚠️ DEVELOPMENT STATUS: Phase 1 (95% Complete)**  
-> BlueLab is currently in active development. The installer system is being refined during the BlueBuild/BlueFin ecosystem transition. We are taking a brief pause to work on Phase 2 in the [BlueLab Stacks repository](https://github.com/JungleJM/BlueLab-Stacks).
+> **⚠️ PROJECT STATUS: Phase 1 On Hold (95% Complete)**  
+> BlueLab Phase 1 is currently **on hold** due to installer timing issues during the BlueBuild/BlueFin ecosystem transition. Active development has shifted to **Phase 2** in the [BlueLab Stacks repository](https://github.com/JungleJM/BlueLab-Stacks) while we wait for upstream installer stabilization.
 
 ## What is BlueLab?
 
@@ -103,8 +103,13 @@ Creates a private, encrypted tunnel between your devices and BlueLab:
 - ✅ **CI/CD Pipeline**: Automated ISO generation
 - ⚠️ **Installer Timing**: Working through conflicts with system setup
 
-### Current Work: Phase 2
-We're temporarily focusing on Phase 2 development in the [BlueLab Stacks repository](https://github.com/JungleJM/BlueLab-Stacks) while the BlueBuild ecosystem stabilizes installer functionality.
+### Current Work: Phase 2 (Active Development)
+**Primary Repository**: [BlueLab Stacks](https://github.com/JungleJM/BlueLab-Stacks)
+
+Active development is focusing on Phase 2 features while Phase 1 installer issues are resolved:
+- Stack system implementation and management
+- Service discovery and integration  
+- Advanced configuration and monitoring features
 
 ## 🏗 Architecture
 
