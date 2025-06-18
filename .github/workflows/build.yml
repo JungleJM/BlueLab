@@ -12,12 +12,11 @@ name: Build BlueLab Image
 # Manual builds available for development/testing only.
 
 on:
-  # Automatic builds disabled to conserve resources
-  # BlueLab now uses simple rebase workflow - no custom builds needed
+  # Temporary: Re-enabling push trigger for testing
+  push:
+    branches: [ main ]
   # schedule:
   #   - cron: '0 6 * * *'
-  # push:
-  #   branches: [ main, develop, first-boot ]
   # pull_request:
   #   branches: [ main ]
   workflow_dispatch:
