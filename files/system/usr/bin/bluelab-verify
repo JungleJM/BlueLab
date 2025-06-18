@@ -1,0 +1,20 @@
+#!/bin/bash
+# BlueLab system verification script
+
+echo "=== BlueLab System Verification ==="
+echo "Version: $(cat /etc/bluelab-version 2>/dev/null || echo 'Unknown')"
+echo "Templates available: $(ls /usr/share/bluelab/templates/ 2>/dev/null | wc -l)"
+echo "Runtime directory: $(ls -ld /var/lib/bluelab 2>/dev/null || echo 'Not created yet')"
+echo "Setup completed: $(test -f /var/lib/bluelab/.setup-complete && echo 'Yes' || echo 'No')"
+
+if command -v docker >/dev/null 2>&1; then
+    echo "Docker: $(docker --version 2>/dev/null || echo 'Not available')"
+else
+    echo "Docker: Not installed (run 'ujust toggle-devmode')"
+fi
+
+if command -v tailscale >/dev/null 2>&1; then
+    echo "Tailscale: $(tailscale version 2>/dev/null || echo 'Not available')"
+else
+    echo "Tailscale: Not installed (run 'ujust toggle-tailscale')"
+fi

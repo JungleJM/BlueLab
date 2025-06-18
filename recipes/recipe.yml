@@ -1,3 +1,5 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 name: bluelab
 description: BlueLab - Automated homelab system based on Bluefin-DX
 base-image: ghcr.io/ublue-os/bluefin-dx
@@ -6,14 +8,8 @@ image-version: 41
 modules:
   - type: files
     files:
-      - source: ../files/bin
-        destination: /usr/bin
-      - source: ../files/lib
-        destination: /usr/lib  
-      - source: ../files/share
-        destination: /usr/share
-      - source: ../files/config
-        destination: /usr/share/bluelab
+      - source: system
+        destination: / # copies files/system/* (* means everything inside it) into your image's root folder /
         
   - type: systemd
     system:
@@ -37,3 +33,5 @@ modules:
   - type: script
     scripts:
       - setup-bluelab-environment.sh
+
+  - type: signing # this sets up the proper policy & signing files for signed images to work fully

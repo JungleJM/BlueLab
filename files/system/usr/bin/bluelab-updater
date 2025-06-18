@@ -1,0 +1,108 @@
+#!/bin/bash
+set -euo pipefail
+
+# BlueLab System Updater
+# Handles automated updates for both system (rpm-ostree) and containers (Watchtower)
+
+SCRIPT_NAME="bluelab-updater"
+LOG_FILE="/var/log/bluelab-updater.log"
+CONFIG_DIR="/var/lib/bluelab"
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $*" | tee -a "$LOG_FILE"
+}
+
+log_info() { log "INFO" "$@"; }
+log_warn() { log "WARN" "$@"; }
+log_error() { log "ERROR" "$@"; }
+
+# Exit handler
+cleanup() {
+    local exit_code=$?
+    if [ $exit_code -eq 0 ]; then
+        log_info "BlueLab system update completed successfully"
+    else
+        log_error "BlueLab system update failed with exit code $exit_code"
+    fi
+    exit $exit_code
+}
+trap cleanup EXIT
+
+log_info "Starting BlueLab system update check"
+
+# Check if system is ready for updates
+check_system_ready() {
+    log_info "Checking if system is ready for updates"
+    
+    # Don't update if system is busy with other operations
+    if pgrep -f "bluelab-first-boot" >/dev/null; then
+        log_warn "First-boot script is running, skipping updates"
+        exit 0
+    fi
+    
+    # Check if we have network connectivity
+    if ! ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+        log_warn "No network connectivity, skipping updates"
+        exit 0
+    fi
+    
+    log_info "System is ready for updates"
+}
+
+# Update rpm-ostree system
+update_system() {
+    log_info "Checking for rpm-ostree system updates"
+    
+    # Check if updates are available
+    if rpm-ostree upgrade --check 2>/dev/null; then
+        log_info "System updates are available"
+        
+        # Download and stage updates (doesn't apply immediately)
+        log_info "Downloading and staging system updates"
+        rpm-ostree upgrade --download-only
+        
+        log_info "System updates staged - will apply on next reboot"
+        log_warn "NOTICE: System updates require a reboot to take effect"
+    else
+        log_info "No system updates available"
+    fi
+}
+
+# Update containers via Watchtower (if enabled)
+update_containers() {
+    log_info "Checking for container updates via Watchtower"
+    
+    # Check if Watchtower is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "watchtower" 2>/dev/null; then
+        log_info "Watchtower not running, starting one-shot container update check"
+        
+        # Run Watchtower in one-shot mode to check for updates
+        docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            containrrr/watchtower:latest \
+            --run-once \
+            --cleanup \
+            --include-restarting \
+            --log-level info \
+            bluelab-homepage bluelab-dockge 2>/dev/null || true
+            
+        log_info "Container update check completed"
+    else
+        log_info "Watchtower is already running in daemon mode"
+    fi
+}
+
+# Main execution
+main() {
+    check_system_ready
+    update_system
+    update_containers
+    
+    log_info "BlueLab update cycle completed"
+}
+
+# Run main function
+main "$@"

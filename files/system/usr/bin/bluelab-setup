@@ -1,0 +1,576 @@
+#!/bin/bash
+set -euo pipefail
+
+# BlueLab Setup Script - Interactive Configuration
+# This script runs when user executes 'ujust bluelab-setup'
+
+SCRIPT_NAME="bluelab-setup"
+LOG_FILE="/var/log/bluelab-setup.log"
+CONFIG_DIR="/var/lib/bluelab"
+COMPLETION_MARKER="$CONFIG_DIR/.setup-complete"
+
+# Self-update configuration
+BLUELAB_REPO_URL="https://raw.githubusercontent.com/JungleJM/BlueLab/main"
+SCRIPT_UPDATE_MARKER="$CONFIG_DIR/.script-update-check"
+UPDATE_CHECK_INTERVAL=86400  # 24 hours in seconds
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $*" | tee -a "$LOG_FILE"
+}
+
+log_info() { log "INFO" "$@"; }
+log_warn() { log "WARN" "$@"; }
+log_error() { log "ERROR" "$@"; }
+
+# Self-update functionality
+check_for_script_updates() {
+    log_info "Checking for BlueLab setup script updates..."
+    
+    # Skip update check if done recently
+    if [ -f "$SCRIPT_UPDATE_MARKER" ]; then
+        local last_check=$(stat -c %Y "$SCRIPT_UPDATE_MARKER" 2>/dev/null || echo 0)
+        local now=$(date +%s)
+        local time_diff=$((now - last_check))
+        
+        if [ $time_diff -lt $UPDATE_CHECK_INTERVAL ]; then
+            log_info "Update check skipped (checked recently)"
+            return 0
+        fi
+    fi
+    
+    # Create temp directory for update check
+    local temp_dir=$(mktemp -d)
+    local remote_script="$temp_dir/bluelab-setup"
+    local current_script="/usr/bin/bluelab-setup"
+    
+    # Download latest script
+    if curl -sSfL "$BLUELAB_REPO_URL/files/bin/bluelab-setup" -o "$remote_script" 2>/dev/null; then
+        chmod +x "$remote_script"
+        
+        # Compare scripts (exclude timestamp-based differences)
+        local current_hash=$(grep -v "$(date '+%Y-%m-%d')" "$current_script" 2>/dev/null | sha256sum | cut -d' ' -f1)
+        local remote_hash=$(grep -v "$(date '+%Y-%m-%d')" "$remote_script" 2>/dev/null | sha256sum | cut -d' ' -f1)
+        
+        if [ "$current_hash" != "$remote_hash" ]; then
+            echo ""
+            echo "🔄 BlueLab Setup Script Update Available!"
+            echo "========================================"
+            echo ""
+            echo "A newer version of the BlueLab setup script is available."
+            echo "This update may include:"
+            echo "  • New features and improvements"
+            echo "  • Bug fixes and stability enhancements"
+            echo "  • Updated configuration options"
+            echo ""
+            echo "⚠️  The script will backup your current version first."
+            echo ""
+            read -p "Update to the latest setup script? [Y/n]: " update_confirm
+            
+            if [[ ! "$update_confirm" =~ ^[Nn] ]]; then
+                # Backup current script
+                local backup_script="/usr/bin/bluelab-setup.backup.$(date +%Y%m%d-%H%M%S)"
+                cp "$current_script" "$backup_script"
+                log_info "Current script backed up to: $backup_script"
+                
+                # Update script
+                cp "$remote_script" "$current_script"
+                chmod +x "$current_script"
+                
+                # Update configs if available
+                update_config_files "$temp_dir"
+                
+                echo ""
+                echo "✅ BlueLab setup script updated successfully!"
+                echo ""
+                echo "🔄 Restarting with updated script..."
+                touch "$SCRIPT_UPDATE_MARKER"
+                
+                # Cleanup and restart with new script
+                rm -rf "$temp_dir"
+                exec "$current_script" "$@"
+            else
+                echo "Update skipped."
+            fi
+        else
+            log_info "Setup script is up to date"
+        fi
+        
+        # Mark update check as completed
+        touch "$SCRIPT_UPDATE_MARKER"
+    else
+        log_warn "Could not check for script updates (network issue?)"
+    fi
+    
+    # Cleanup
+    rm -rf "$temp_dir"
+}
+
+# Update configuration files
+update_config_files() {
+    local temp_dir="$1"
+    log_info "Checking for configuration file updates..."
+    
+    # Update Variety config if available
+    if curl -sSfL "$BLUELAB_REPO_URL/files/config/variety.conf" -o "$temp_dir/variety.conf" 2>/dev/null; then
+        if [ ! -f "/usr/share/bluelab/variety.conf" ] || ! cmp -s "$temp_dir/variety.conf" "/usr/share/bluelab/variety.conf"; then
+            mkdir -p /usr/share/bluelab
+            cp "$temp_dir/variety.conf" "/usr/share/bluelab/variety.conf"
+            log_info "✅ Variety configuration updated"
+        fi
+    fi
+    
+    # Update ujust commands if available
+    if curl -sSfL "$BLUELAB_REPO_URL/files/share/ublue-os/just/60-bluelab.just" -o "$temp_dir/60-bluelab.just" 2>/dev/null; then
+        if [ ! -f "/usr/share/ublue-os/just/60-bluelab.just" ] || ! cmp -s "$temp_dir/60-bluelab.just" "/usr/share/ublue-os/just/60-bluelab.just"; then
+            mkdir -p /usr/share/ublue-os/just
+            cp "$temp_dir/60-bluelab.just" "/usr/share/ublue-os/just/60-bluelab.just"
+            log_info "✅ ujust commands updated"
+            
+            # Reload just commands to make new commands available immediately
+            if command -v just &>/dev/null; then
+                just --list > /dev/null 2>&1 || true
+                log_info "✅ ujust commands reloaded"
+            fi
+        fi
+    fi
+}
+
+# Exit handler
+cleanup() {
+    local exit_code=$?
+    if [ $exit_code -eq 0 ]; then
+        log_info "BlueLab setup completed successfully"
+        touch "$COMPLETION_MARKER"
+    else
+        log_error "BlueLab setup failed with exit code $exit_code"
+    fi
+    exit $exit_code
+}
+trap cleanup EXIT
+
+# Create necessary directories
+setup_directories() {
+    log_info "Creating BlueLab directories"
+    mkdir -p "$CONFIG_DIR"/{config,stacks,data,backups}
+    mkdir -p /var/log/bluelab
+    chown -R 1000:1000 "$CONFIG_DIR"
+}
+
+# Get system username for Docker
+get_system_user() {
+    local current_user
+    current_user=$(who am i | awk '{print $1}' 2>/dev/null || echo "$SUDO_USER")
+    
+    if [ -z "$current_user" ]; then
+        current_user=$(id -un 1000 2>/dev/null || echo "user")
+    fi
+    
+    echo "$current_user"
+}
+
+# Setup Docker access for user
+setup_docker_access() {
+    local username="$1"
+    log_info "Setting up Docker access for user: $username"
+    
+    # Set up Docker groups using ujust dx-group (Bluefin-DX specific)
+    if command -v ujust &>/dev/null; then
+        sudo -u "$username" ujust dx-group || {
+            log_warn "ujust dx-group failed, user may need to manually run it later"
+        }
+        log_info "Docker groups configured - user may need to log out and back in"
+    else
+        log_warn "ujust command not found - Docker access may need manual configuration"
+    fi
+}
+
+# Deploy monitoring stack (Homepage + Dockge)
+deploy_monitoring_stack() {
+    local username="$1"
+    log_info "Deploying BlueLab monitoring stack"
+    
+    # Create monitoring stack directory
+    mkdir -p "$CONFIG_DIR/stacks/monitoring"
+    
+    # Create docker-compose.yml for monitoring stack
+    cat > "$CONFIG_DIR/stacks/monitoring/docker-compose.yml" << 'EOF'
+version: '3.8'
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: bluelab-homepage
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/lib/bluelab/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+
+  dockge:
+    image: louislam/dockge:1
+    container_name: bluelab-dockge
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dockge:/app/data
+      - /var/lib/bluelab/stacks:/var/lib/bluelab/stacks
+    environment:
+      - DOCKGE_STACKS_DIR=/var/lib/bluelab/stacks
+EOF
+
+    # Set proper ownership
+    chown -R 1000:1000 "$CONFIG_DIR/stacks"
+    
+    # Start the monitoring stack
+    log_info "Starting monitoring stack..."
+    cd "$CONFIG_DIR/stacks/monitoring"
+    sudo -u "$username" docker-compose up -d
+    
+    # Wait for containers to start
+    sleep 10
+    
+    # Verify containers are running
+    if sudo -u "$username" docker ps -q --filter "name=bluelab-homepage" | grep -q .; then
+        log_info "✅ Homepage container started successfully"
+    else
+        log_warn "⚠️  Homepage container may not have started properly"
+    fi
+    
+    if sudo -u "$username" docker ps -q --filter "name=bluelab-dockge" | grep -q .; then
+        log_info "✅ Dockge container started successfully"
+    else
+        log_warn "⚠️  Dockge container may not have started properly"
+    fi
+}
+
+# Setup hostname access
+setup_hostname() {
+    log_info "Setting up BlueLab hostname access"
+    
+    # Set system hostname to "bluelab"
+    hostnamectl set-hostname "bluelab"
+    
+    # Update /etc/hosts for local resolution
+    if ! grep -q "bluelab.local" /etc/hosts; then
+        echo "127.0.1.1 bluelab bluelab.local" >> /etc/hosts
+    fi
+    
+    log_info "Hostname configured: bluelab.local"
+}
+
+# Setup WireGuard VPN
+setup_wireguard() {
+    local config_path="$1"
+    local username="$2"
+    log_info "Setting up WireGuard VPN"
+    
+    # Install WireGuard if not present
+    if ! command -v wg &>/dev/null; then
+        log_info "Installing WireGuard..."
+        if command -v ujust &>/dev/null; then
+            # Use Bluefin's package layering
+            sudo -u "$username" ujust install-layered-package wireguard-tools || {
+                log_warn "Failed to install WireGuard via ujust, trying rpm-ostree..."
+                rpm-ostree install wireguard-tools
+                log_info "WireGuard installed - system reboot may be required later"
+            }
+        else
+            rpm-ostree install wireguard-tools
+            log_info "WireGuard installed - system reboot may be required later"
+        fi
+    fi
+    
+    # Create WireGuard config directory
+    mkdir -p /etc/wireguard
+    
+    # Copy and secure the config file
+    local config_name="bluelab.conf"
+    cp "$config_path" "/etc/wireguard/$config_name"
+    chmod 600 "/etc/wireguard/$config_name"
+    chown root:root "/etc/wireguard/$config_name"
+    
+    # Enable and start WireGuard
+    systemctl enable "wg-quick@bluelab.service"
+    systemctl start "wg-quick@bluelab.service"
+    
+    if systemctl is-active --quiet "wg-quick@bluelab.service"; then
+        log_info "✅ WireGuard VPN configured and active"
+        
+        # Get WireGuard interface info
+        local wg_ip=$(wg show bluelab | grep -oP 'allowed ips: \K[^,]*' | head -1 2>/dev/null || echo "unknown")
+        log_info "WireGuard interface: bluelab (IP: $wg_ip)"
+    else
+        log_warn "⚠️  WireGuard service failed to start - check configuration"
+    fi
+}
+
+# Setup Tailscale mesh network
+setup_tailscale() {
+    local auth_key="$1"
+    local username="$2"
+    log_info "Setting up Tailscale mesh network"
+    
+    if command -v ujust &>/dev/null; then
+        # Enable Tailscale via Bluefin's ujust system
+        echo "yes" | sudo -u "$username" ujust toggle-tailscale
+        sleep 5
+        
+        # Configure Tailscale for service mesh (not exit node)
+        tailscale up \
+            --authkey="$auth_key" \
+            --hostname="bluelab" \
+            --accept-routes=true \
+            --advertise-exit-node=false \
+            --shields-up=false
+            
+        log_info "✅ Tailscale mesh network configured"
+        
+        # Get Tailscale IP
+        local ts_ip=$(tailscale ip -4 2>/dev/null || echo "pending")
+        log_info "Tailscale IP: $ts_ip"
+    else
+        log_warn "ujust not available - please configure Tailscale manually"
+    fi
+}
+
+# Setup Variety wallpaper manager
+setup_variety() {
+    local username="$1"
+    log_info "Setting up Variety wallpaper manager"
+    
+    # Create Variety config directory for user
+    local user_home=$(getent passwd "$username" | cut -d: -f6)
+    local variety_config_dir="$user_home/.config/variety"
+    
+    sudo -u "$username" mkdir -p "$variety_config_dir"
+    sudo -u "$username" mkdir -p "$variety_config_dir/Downloaded"
+    sudo -u "$username" mkdir -p "$variety_config_dir/Favorites"
+    sudo -u "$username" mkdir -p "$variety_config_dir/Fetched"
+    
+    # Copy BlueLab Variety configuration
+    if [ -f "/usr/share/bluelab/variety.conf" ]; then
+        sudo -u "$username" cp "/usr/share/bluelab/variety.conf" "$variety_config_dir/variety.conf"
+        log_info "✅ Variety configured for Bing Photo of the Day (daily changes)"
+    else
+        log_warn "Variety config template not found, using defaults"
+    fi
+    
+    # Enable Variety autostart for user
+    local autostart_dir="$user_home/.config/autostart"
+    sudo -u "$username" mkdir -p "$autostart_dir"
+    
+    # Create autostart desktop file
+    sudo -u "$username" tee "$autostart_dir/variety.desktop" > /dev/null << 'EOF'
+[Desktop Entry]
+Name=Variety
+Comment=Wallpaper changer, downloader and manager
+Icon=variety
+Exec=variety
+Terminal=false
+Type=Application
+Categories=Graphics;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+EOF
+    
+    # Start Variety immediately if running in a desktop session
+    if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+        log_info "Starting Variety wallpaper manager..."
+        sudo -u "$username" nohup variety > /dev/null 2>&1 &
+        sleep 2
+        log_info "✅ Variety started and will change wallpaper daily"
+    else
+        log_info "✅ Variety configured to start automatically on login"
+    fi
+}
+
+# Setup GNOME dock configuration
+setup_gnome_dock() {
+    local username="$1"
+    log_info "Configuring GNOME dock applications"
+    
+    # Wait for user session to be available
+    sleep 2
+    
+    # Get current favorite apps and modify them
+    sudo -u "$username" bash -c '
+        export DISPLAY=${DISPLAY:-:0}
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+        
+        # Get current favorites
+        current_favorites=$(gsettings get org.gnome.shell favorite-apps 2>/dev/null || echo "[]")
+        
+        # Convert to a format we can work with and remove VS Code variants
+        new_favorites=$(echo "$current_favorites" | sed "s/\[//g" | sed "s/\]//g" | sed "s/, /,/g" | tr "," "\n" | grep -v "code" | grep -v "vscode" | grep -v "visual-studio-code")
+        
+        # Add terminal if not already present
+        if ! echo "$new_favorites" | grep -q "org.gnome.Terminal.desktop"; then
+            if ! echo "$new_favorites" | grep -q "org.gnome.Console.desktop"; then
+                # Add terminal (prefer Console, fallback to Terminal)
+                if [ -f "/usr/share/applications/org.gnome.Console.desktop" ]; then
+                    new_favorites="$new_favorites"$'\n'"'\''org.gnome.Console.desktop'\''"
+                else
+                    new_favorites="$new_favorites"$'\n'"'\''org.gnome.Terminal.desktop'\''"
+                fi
+            fi
+        fi
+        
+        # Clean up empty lines and rebuild array format
+        clean_favorites=$(echo "$new_favorites" | grep -v "^$" | paste -sd "," - | sed "s/^/[/" | sed "s/$/]/")
+        
+        # Apply the new favorites
+        if [ -n "$clean_favorites" ] && [ "$clean_favorites" != "[]" ]; then
+            gsettings set org.gnome.shell favorite-apps "$clean_favorites"
+            echo "✅ Dock updated: Removed VS Code, added Terminal"
+        else
+            # Fallback to a sensible default if something went wrong
+            gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'firefox.desktop', 'org.gnome.Console.desktop', 'org.gnome.Settings.desktop']"
+            echo "✅ Dock set to default applications with Terminal"
+        fi
+    ' 2>/dev/null || {
+        log_warn "Could not configure GNOME dock - may need manual setup after login"
+    }
+    
+    log_info "✅ GNOME dock configured for BlueLab"
+}
+
+# Main setup function
+main() {
+    log_info "🏠 Starting BlueLab Setup"
+    
+    # Check for script updates first
+    check_for_script_updates "$@"
+    
+    # Check if already completed
+    if [ -f "$COMPLETION_MARKER" ]; then
+        echo "BlueLab setup has already been completed!"
+        echo "Run 'ujust bluelab-reconfigure' to change settings."
+        exit 0
+    fi
+    
+    # Get system user
+    SYSTEM_USER=$(get_system_user)
+    log_info "Detected system user: $SYSTEM_USER"
+    
+    # Prompt for VPN configuration (optional)
+    echo ""
+    echo "🌍 VPN Configuration (Optional)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "BlueLab supports dual VPN configuration:"
+    echo "  🔒 WireGuard: Traditional VPN for general internet traffic"
+    echo "  🌐 Tailscale: Mesh network for secure service access"
+    echo ""
+    echo "You can configure one, both, or neither (all optional)."
+    echo ""
+    
+    # WireGuard Configuration
+    echo "1️⃣  WireGuard Setup"
+    echo "   Enter the path to your WireGuard .conf file:"
+    echo "   💡 Tip: You can drag & drop the file into this terminal to get the path"
+    echo ""
+    read -p "WireGuard config file path (or press Enter to skip): " WG_CONFIG_PATH
+    
+    # Validate WireGuard config
+    if [ -n "$WG_CONFIG_PATH" ]; then
+        # Expand tilde to home directory
+        WG_CONFIG_PATH="${WG_CONFIG_PATH/#\~/$HOME}"
+        
+        if [ -f "$WG_CONFIG_PATH" ]; then
+            echo "   ✅ Found WireGuard config: $(basename "$WG_CONFIG_PATH")"
+            WG_ENABLED=true
+        else
+            echo "   ❌ File not found: $WG_CONFIG_PATH"
+            echo "   WireGuard setup will be skipped."
+            WG_ENABLED=false
+        fi
+    else
+        WG_ENABLED=false
+        echo "   ⏭️  WireGuard setup skipped"
+    fi
+    
+    echo ""
+    echo "2️⃣  Tailscale Setup"
+    echo "   Tailscale provides secure mesh networking for accessing your services remotely."
+    echo ""
+    read -p "Enter Tailscale auth key (or press Enter to skip): " TAILSCALE_KEY
+    
+    if [ -n "$TAILSCALE_KEY" ]; then
+        echo "   ✅ Tailscale auth key provided"
+        TAILSCALE_ENABLED=true
+    else
+        echo "   ⏭️  Tailscale setup skipped"
+        TAILSCALE_ENABLED=false
+    fi
+    
+    echo ""
+    echo "🚀 Setting up BlueLab..."
+    
+    # Setup steps
+    setup_directories
+    setup_hostname
+    setup_docker_access "$SYSTEM_USER"
+    deploy_monitoring_stack "$SYSTEM_USER"
+    setup_variety "$SYSTEM_USER"
+    setup_gnome_dock "$SYSTEM_USER"
+    
+    # Setup VPN services
+    if [ "$WG_ENABLED" = true ]; then
+        setup_wireguard "$WG_CONFIG_PATH" "$SYSTEM_USER"
+    fi
+    
+    if [ "$TAILSCALE_ENABLED" = true ]; then
+        setup_tailscale "$TAILSCALE_KEY" "$SYSTEM_USER"
+    fi
+    
+    echo ""
+    echo "🎉 BlueLab Setup Complete!"
+    echo "================================"
+    echo ""
+    echo "🌐 Access Your Services:"
+    echo "  • Homepage: http://bluelab.local:3000"
+    echo "  • Dockge:   http://bluelab.local:5001"
+    echo ""
+    echo "🖼️  Desktop Features:"
+    echo "  • Variety: Bing Photo of the Day (changes daily)"
+    echo "  • Auto-starts on login for fresh wallpapers"
+    echo "  • Dock: Customized with Terminal, VS Code removed"
+    echo ""
+    
+    # Show VPN access information
+    if [ "$WG_ENABLED" = true ] || [ "$TAILSCALE_ENABLED" = true ]; then
+        echo "🔐 VPN Access Configured:"
+        
+        if [ "$WG_ENABLED" = true ]; then
+            echo "  🔒 WireGuard: Traditional VPN active (interface: bluelab)"
+        fi
+        
+        if [ "$TAILSCALE_ENABLED" = true ]; then
+            echo "  🌐 Tailscale: Mesh network active"
+            echo "     • Homepage: http://bluelab:3000"
+            echo "     • Dockge:   http://bluelab:5001"
+        fi
+        echo ""
+    fi
+    echo "📋 Useful Commands:"
+    echo "  • ujust bluelab-status    - Check service status"
+    echo "  • ujust bluelab-logs      - View logs"
+    echo "  • ujust bluelab-reconfigure - Change settings"
+    echo ""
+    echo "🚀 Next Steps:"
+    echo "  • ujust download-bluelab-stacks - Install complete service stacks"
+    echo "  • ujust uninstall-bluelab-stacks - Remove all stacks (if needed)"
+    echo ""
+    echo "💡 Tip: Bookmark these URLs for easy access!"
+}
+
+# Execute main function
+main "$@"

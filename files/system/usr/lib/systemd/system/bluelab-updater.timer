@@ -1,0 +1,17 @@
+[Unit]
+Description=BlueLab System Updater Timer
+Documentation=https://github.com/your-username/bluelab
+Requires=bluelab-updater.service
+
+[Timer]
+# Run daily at 3 AM
+OnCalendar=*-*-* 03:00:00
+# Run 15 minutes after boot if we missed the scheduled time
+OnBootSec=15min
+# Don't accumulate missed runs
+Persistent=false
+# Allow up to 1 hour randomization to avoid thundering herd
+RandomizedDelaySec=3600
+
+[Install]
+WantedBy=timers.target

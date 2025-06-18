@@ -1,100 +1,37 @@
-name: Build BlueLab Image
-# 
-# ⚠️  RESOURCE CONSERVATION MODE ⚠️
-# Automatic builds are DISABLED to conserve GitHub Actions resources.
-# 
-# BlueLab has transitioned to a simple rebase workflow:
-# 1. Users install Bluefin-DX
-# 2. Users rebase to BlueLab image
-# 3. Users run `ujust bluelab-setup` + `ujust download-bluelab-stacks`
-# 
-# No custom ISO generation needed - saves significant build resources!
-# Manual builds available for development/testing only.
-
+name: bluebuild
 on:
   # Temporary: Re-enabling push trigger for testing
   push:
-    branches: [ main ]
-  # schedule:
-  #   - cron: '0 6 * * *'
-  # pull_request:
-  #   branches: [ main ]
-  workflow_dispatch:
-    # Manual triggering only - for development/testing purposes
-    inputs:
-      reason:
-        description: 'Reason for manual build'
-        required: false
-        default: 'Development testing'
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: bluelab
-
+    paths-ignore: # don't rebuild if only documentation has changed
+      - "**.md"
+  pull_request:
+  workflow_dispatch: # allow manually triggering builds
+concurrency:
+  # only run one build at a time
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
 jobs:
-  build:
+  bluebuild:
+    name: Build Custom Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       id-token: write
-
+    strategy:
+      fail-fast: false # stop GH from cancelling all matrix builds if one fails
+      matrix:
+        recipe:
+          - recipe.yml
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/junglejm/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=schedule,pattern=nightly
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build BlueLab Image
+      # the build is fully handled by the reusable github action
+      - name: Build Custom Image
         uses: blue-build/github-action@v1.8
         with:
-          recipe: recipe.yml
+          recipe: ${{ matrix.recipe }}
           cosign_private_key: ${{ secrets.SIGNING_SECRET }}
-          registry_token: ${{ secrets.GITHUB_TOKEN }}
+          registry_token: ${{ github.token }}
           pr_event_number: ${{ github.event.number }}
+
+          # enabled by default, disable if your image is small and you want faster builds
           maximize_build_space: true
-          use_cache: true
-          registry: ghcr.io
-          registry_namespace: junglejm
-
-
-  verify:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Verify Build Artifacts
-        run: |
-          echo "✅ BlueBuild recipe successfully processed"
-          echo "✅ Container image built and pushed to registry"
-          echo "✅ Manual build verification complete"
-          echo ""
-          echo "🚀 BlueLab Installation Instructions:"
-          echo "1. Install standard Bluefin-DX from projectbluefin.io"
-          echo "2. Rebase: rpm-ostree rebase ostree-unverified-registry:ghcr.io/junglejm/bluelab"
-          echo "3. Reboot: sudo systemctl reboot"
-          echo "4. Setup: ujust bluelab-setup"
-          echo "5. Install stacks: ujust download-bluelab-stacks"
-          echo ""
-          echo "⚠️  Note: Automatic builds disabled to conserve GitHub Actions resources"
-          echo "🎯 Reason for manual build: ${{ github.event.inputs.reason }}"
